@@ -4,12 +4,7 @@ The engine for scripting reactive browsers in Rust. `Phlow` allows developers to
 ## Notice
 This is a `nightly` crate because it relies on `specialization` (or `min_specialization`) features. See [https://github.com/rust-lang/rust/issues/31844](https://github.com/rust-lang/rust/issues/31844).
 
-## Depend
-
-```toml
-phlow = { version = "*", features = [ "phlow-derive" ] }
-```
-
-## Features
- - `printing` - **enabled by default**, detects if an arbitrary type implements `Display` or `Debug` and uses an appropriate one in `PhlowObject::to_string`. As a result any object or reference wrapped in `phlow!()` becomes printable.
- - `phlow-derive` - enable to define new extensions, is not required to import existing extensions
+## Crates
+For more information about each member crate consider checking out:
+ - [phlow](./phlow) - core crate containing the engine
+ - [phlow-derive](./phlow-derive) - derive crate used to create new extensions
