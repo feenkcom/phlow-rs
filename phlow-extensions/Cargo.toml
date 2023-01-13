@@ -1,0 +1,7 @@
+[package]
+name = "phlow-extensions"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+phlow = { path = "../phlow", features = [ "phlow-derive" ] }

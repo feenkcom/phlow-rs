@@ -1,0 +1,21 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "phlow",
+    "phlow-derive",
+    "phlow-examples",
+    "phlow-extensions",
+    "phlow-ffi"
+]
+
+exclude = [ "target" ]
+
+[profile.dev]
+opt-level = 0
+debug = true
+debug-assertions = true
+overflow-checks = true
+
+[profile.release]
+opt-level = 3

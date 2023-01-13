@@ -1,0 +1,19 @@
+[package]
+name = "phlow-examples"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+phlow = { path = "../phlow", features = [ "phlow-derive" ] }
+
+[[bin]]
+name = "color"
+path = "src/color.rs"
+
+[[bin]]
+name = "number"
+path = "src/number.rs"
+
+[[bin]]
+name = "generic"
+path = "src/generic.rs"
