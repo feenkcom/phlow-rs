@@ -1,7 +1,15 @@
 [package]
 name = "phlow-extensions"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
+authors = ["feenk gmbh <contact@feenk.com>"]
+repository = "https://github.com/feenkcom/phlow-rs/tree/main/phlow"
+license = "MIT"
+keywords = ["phlow", "meta", "reflection"]
+description = "Phlow extensions to Rust's core structures"
 
 [dependencies]
-phlow = { path = "../phlow", features = [ "phlow-derive" ] }
+phlow = { version = "=1.0.0", optional = true, features = [ "phlow-derive" ], path = "../phlow" }
+
+[dev-dependencies]
+phlow = { version = "1.0", features = [ "phlow-derive" ], path = "../phlow" }
