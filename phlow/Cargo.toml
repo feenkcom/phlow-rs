@@ -1,6 +1,6 @@
 [package]
 name = "phlow"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 authors = ["feenk gmbh <contact@feenk.com>"]
 repository = "https://github.com/feenkcom/phlow-rs/tree/main/phlow"

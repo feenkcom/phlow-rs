@@ -1,4 +1,4 @@
-use phlow::{PhlowObject, PhlowView};
+use phlow::PhlowView;
 
 #[phlow::extensions(CoreExtensions, String)]
 impl StringExtensions {
@@ -7,11 +7,7 @@ impl StringExtensions {
         view.list()
             .title("Print")
             .priority(5)
-            .items(|string: &String, object| {
-                phlow_all!(vec![string.clone()])
-            })
-            .item_text(|each: &String, _object | each.to_string())
-            .send(|each: &String, object| phlow!(each.clone()))
+            .items(|string: &String, _object| phlow_all!(vec![string.clone()]))
     }
 
     #[phlow::view]
@@ -19,10 +15,6 @@ impl StringExtensions {
         view.list()
             .title("Chars")
             .priority(6)
-            .items(|string: &String, object| {
-                phlow_all!(string.chars())
-            })
-            .item_text(|each: &char, _object | each.to_string())
-            .send(|each: &char, object| phlow!(each.clone()))
+            .items(|string: &String, _object| phlow_all!(string.chars()))
     }
 }

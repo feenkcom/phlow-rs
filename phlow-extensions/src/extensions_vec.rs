@@ -1,4 +1,4 @@
-use phlow::{PhlowObject, PhlowView};
+use phlow::PhlowView;
 
 #[phlow::extensions(CoreExtensions, "Vec<T>")]
 impl<T: 'static> VecExtensions<T> {
@@ -7,8 +7,10 @@ impl<T: 'static> VecExtensions<T> {
         view.list()
             .title("Items")
             .priority(5)
-            .items(|vec: &Vec<T>, object|
-                vec.iter().map(|each| phlow!(each, object)).collect())
-            .send(|each: &T, object| object.clone())
+            .items(|vec: &Vec<T>, object| {
+                vec.iter()
+                    .map(|each| phlow_generic!(each, object))
+                    .collect()
+            })
     }
 }
