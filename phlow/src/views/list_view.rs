@@ -1,8 +1,8 @@
 use std::any::Any;
 use std::fmt::{Debug, Display, Formatter};
 
-use crate::{PhlowObject, PhlowView};
 use crate::reflection::AnyValue;
+use crate::{PhlowObject, PhlowView};
 
 #[allow(unused)]
 pub struct PhlowListView {
@@ -40,8 +40,14 @@ impl PhlowListView {
         mut self,
         items_block: impl Fn(&T, &PhlowObject) -> Vec<PhlowObject> + 'static,
     ) -> Self {
-        self.items_computation =
-            Box::new(move |object: &PhlowObject| items_block(object.value_ref(), object));
+        self.items_computation = Box::new(move |object: &PhlowObject| {
+            // the type may differ when passing over ffi boundary...
+            if let Some(reference) = object.value_ref() {
+                items_block(reference, object)
+            } else {
+                vec![]
+            }
+        });
         self
     }
 
@@ -49,10 +55,13 @@ impl PhlowListView {
         mut self,
         item_text_block: impl Fn(&T, &PhlowObject) -> String + 'static,
     ) -> Self {
-        self.item_text_computation = Box::new(move |each, each_object: &PhlowObject| match each.as_ref_safe::<T>() {
-            Some(each) => item_text_block(each, each_object),
-            None => "Error coercing item type".to_string(),
-        });
+        self.item_text_computation =
+            Box::new(
+                move |each, each_object: &PhlowObject| match each.as_ref_safe::<T>() {
+                    Some(each) => item_text_block(each, each_object),
+                    None => "Error coercing item type".to_string(),
+                },
+            );
         self
     }
 
@@ -60,9 +69,10 @@ impl PhlowListView {
         mut self,
         item_send_block: impl Fn(&T, &PhlowObject) -> PhlowObject + 'static,
     ) -> Self {
-        self.send_computation = Some(Box::new(move |each, object| {
-            each.as_ref_safe::<T>()
-                .map(|each| item_send_block(each, object))
+        self.send_computation = Some(Box::new(move |_each, object| {
+            object
+                .value_ref::<T>()
+                .map(|item| item_send_block(item, object))
         }));
         self
     }

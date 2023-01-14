@@ -1,4 +1,5 @@
 use std::any;
+use std::any::type_name;
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
 
@@ -8,6 +9,7 @@ use crate::{
 };
 
 #[derive(Clone)]
+#[repr(C)]
 pub struct PhlowExtension {
     view_methods_fn: Rc<dyn Fn(&PhlowExtension) -> Vec<PhlowViewMethod>>,
     category: &'static str,
@@ -21,6 +23,14 @@ impl PhlowExtension {
             category: any::type_name::<Category>(),
             target: any::type_name::<T>(),
         }
+    }
+
+    pub fn category_name(&self) -> &str {
+        self.category
+    }
+
+    pub fn target_type_name(&self) -> &str {
+        self.target
     }
 
     pub fn view_methods(&self) -> Vec<PhlowViewMethod> {
@@ -38,15 +48,16 @@ impl Debug for PhlowExtension {
 }
 
 #[derive(Clone)]
+#[repr(C)]
 pub struct PhlowViewMethod {
-    pub method: Rc<dyn Fn(&PhlowObject) -> Box<dyn PhlowView>>,
+    pub method: Rc<dyn Fn(&PhlowObject) -> Option<Box<dyn PhlowView>>>,
     pub extension: PhlowExtension,
     pub method_name: String,
     pub full_method_name: String,
 }
 
 impl PhlowViewMethod {
-    pub fn as_view(&self, object: &PhlowObject) -> Box<dyn PhlowView> {
+    pub fn as_view(&self, object: &PhlowObject) -> Option<Box<dyn PhlowView>> {
         (self.method)(object)
     }
 }
@@ -58,16 +69,17 @@ impl Debug for PhlowViewMethod {
 }
 
 #[derive(Clone)]
+#[repr(C)]
 pub struct PrintExtensions {
     display_fmt_fn: Option<DisplayFmtFn>,
     debug_fmt_fn: Option<DebugFmtFn>,
 }
 
 impl PrintExtensions {
-    pub fn new<T: 'static>(value: &T) -> Self {
+    pub fn new<T: 'static>() -> Self {
         Self {
-            display_fmt_fn: get_display_fmt_fn(value),
-            debug_fmt_fn: get_debug_fmt_fn(value),
+            display_fmt_fn: get_display_fmt_fn::<T>(),
+            debug_fmt_fn: get_debug_fmt_fn::<T>(),
         }
     }
 
@@ -87,5 +99,28 @@ impl PrintExtensions {
         self.display_fmt_fn
             .as_ref()
             .map(|func| format!("{}", &Fmt(|f| func(value, f))))
+    }
+}
+
+impl Debug for PrintExtensions {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(type_name::<Self>())
+            .field(
+                "display_fmt_fn",
+                if self.display_fmt_fn.is_some() {
+                    &"Some(...)"
+                } else {
+                    &"None"
+                },
+            )
+            .field(
+                "debug_fmt_fn",
+                if self.debug_fmt_fn.is_some() {
+                    &"Some(...)"
+                } else {
+                    &"None"
+                },
+            )
+            .finish()
     }
 }

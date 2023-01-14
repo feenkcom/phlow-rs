@@ -9,10 +9,11 @@ keywords = ["phlow", "meta", "reflection"]
 description = "An engine for scripting reactive browsers in Rust by adding custom views to structures"
 
 [dependencies]
-phlow-derive = { version = "=1.0.0", optional = true, path = "../phlow-derive" }
+phlow-derive = { version = "=1.1.0", optional = true, path = "../phlow-derive" }
+log = "0.4"
 
 [dev-dependencies]
-phlow-derive = { version = "1.0", path = "../phlow-derive" }
+phlow-derive = { version = "1", path = "../phlow-derive" }
 
 [features]
 default = [ "printing" ]

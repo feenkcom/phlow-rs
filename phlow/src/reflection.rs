@@ -1,11 +1,11 @@
-use std::{
-    any::{Any, TypeId},
-    collections::HashMap,
-};
 use std::ffi::c_void;
 use std::fmt::Debug;
 use std::slice::Iter;
 use std::vec::IntoIter;
+use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
+};
 
 #[derive(Default)]
 pub struct AnyMap(HashMap<String, AnyValue>);
