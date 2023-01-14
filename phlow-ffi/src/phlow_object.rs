@@ -23,7 +23,9 @@ pub extern "C" fn phlow_object_get_value_type(
     phlow_object
         .to_ref()
         .and_then(|phlow_object| {
-            value_type.with_mut(|value_type| value_type.set_string(phlow_object.value_type().to_string()))
+            value_type.with_mut(|value_type| {
+                value_type.set_string(phlow_object.value_type_name().to_string())
+            })
         })
         .log();
 }
