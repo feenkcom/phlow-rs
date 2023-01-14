@@ -28,7 +28,7 @@ impl<T: Debug + 'static> GenericExtensions<T> {
             .title("Type")
             .items(|generic: &Generic<T>, object| {
                 phlow_all!(vec![
-                    format!("Type: {}", object.value_type()),
+                    format!("Type: {}", object.value_type_name()),
                     format!("Is some: {}", generic.value.is_some()),
                     format!("Debug: {:?}", object.to_string()),
                 ])

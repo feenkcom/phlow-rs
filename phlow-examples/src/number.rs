@@ -21,7 +21,9 @@ impl I32Extensions {
                     ("Binary", phlow!(format!("{:b}", number)))
                 ])
             })
-            .item_text(|each: &(&str, PhlowObject), _object| format!("{}: {}", each.0, each.1.to_string()))
+            .item_text(|each: &(&str, PhlowObject), _object| {
+                format!("{}: {}", each.0, each.1.to_string())
+            })
             .send(|each: &(&str, PhlowObject), _object| each.1.clone())
     }
 }
