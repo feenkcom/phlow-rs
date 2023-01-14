@@ -6,7 +6,10 @@ extern crate syn;
 use proc_macro::TokenStream;
 
 use proc_macro2::Literal;
-use syn::{AttributeArgs, ImplItem, ImplItemMethod, ItemImpl, Lit, NestedMeta, parse_str, Path, PathArguments, Type};
+use syn::{
+    parse_str, AttributeArgs, ImplItem, ImplItemMethod, ItemImpl, Lit, NestedMeta, Path,
+    PathArguments, Type,
+};
 
 #[proc_macro_attribute]
 pub fn extensions(attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -17,7 +20,7 @@ pub fn extensions(attr: TokenStream, item: TokenStream) -> TokenStream {
         2 => generate_phlow_implementation_for_external_type(
             input,
             attributes.remove(0),
-            extract_target_type(attributes.remove(0))
+            extract_target_type(attributes.remove(0)),
         ),
         _ => panic!("Must contain two arguments: extensions package and target type"),
     };
@@ -27,16 +30,16 @@ pub fn extensions(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 fn extract_target_type(attribute: NestedMeta) -> proc_macro2::TokenStream {
     let tokens = match attribute {
-        NestedMeta::Meta(meta) => { quote!( #meta ) }
-        NestedMeta::Lit(literal) => {
-            match literal {
-                Lit::Str(string) => {
-                    let type_name = parse_str::<Path>(string.value().as_str()).unwrap();
-                    quote!( #type_name )
-                }
-                _ => panic!("Must be a string")
-            }
+        NestedMeta::Meta(meta) => {
+            quote!( #meta )
         }
+        NestedMeta::Lit(literal) => match literal {
+            Lit::Str(string) => {
+                let type_name = parse_str::<Path>(string.value().as_str()).unwrap();
+                quote!( #type_name )
+            }
+            _ => panic!("Must be a string"),
+        },
     };
     tokens
 }
@@ -46,17 +49,20 @@ fn extract_generics(t: &Type) -> Option<proc_macro2::TokenStream> {
         Type::Path(path) => {
             let segments = &path.path.segments;
             if segments.len() != 1 {
-                panic!("Only supports single segments path, but was: {:?}", segments);
+                panic!(
+                    "Only supports single segments path, but was: {:?}",
+                    segments
+                );
             }
             match &segments[0].arguments {
-                PathArguments::None => { None }
-                PathArguments::AngleBracketed(angle) => {
-                    Some(quote! { #angle })
-                }
+                PathArguments::None => None,
+                PathArguments::AngleBracketed(angle) => Some(quote! { #angle }),
                 PathArguments::Parenthesized(_) => None,
             }
         }
-        _ => { panic!("Unsupported type: {:?}", t) }
+        _ => {
+            panic!("Unsupported type: {:?}", t)
+        }
     };
 
     tokens
@@ -77,8 +83,7 @@ fn generate_phlow_implementation_for_external_type(
 
     let struct_impl = if generics.is_some() {
         quote! { pub struct #extension_struct_name(std::marker::PhantomData #generics ); }
-    }
-    else {
+    } else {
         quote! { pub struct #extension_struct_name; }
     };
 
@@ -95,7 +100,7 @@ fn generate_phlow_implementation_for_external_type(
         impl #generics_with_bounds phlow::Phlow<crate::#extension_category_type_name> for #target_type_name {
             #phlow_methods
 
-            fn phlow_extension(&self) -> Option<phlow::PhlowExtension> {
+            fn phlow_extension() -> Option<phlow::PhlowExtension> {
                 Some(phlow::PhlowExtension::new::<crate::#extension_category_type_name, Self>())
             }
         }
@@ -136,9 +141,16 @@ fn generate_phlow_methods(
             quote! {
                 phlow::PhlowViewMethod {
                     method: std::rc::Rc::new(| object: &phlow::PhlowObject | {
-                        let typed_reference = object.value_ref::<#target_type>();
-                        let view = <#extension_container_type> :: #method_name (typed_reference, phlow::PhlowProtoView::new(object.clone()));
-                        Box::new(view)
+                        if let Some(typed_reference) = object.value_ref::<#target_type>() {
+                            let view = <#extension_container_type> :: #method_name (typed_reference, phlow::PhlowProtoView::new(object.clone()));
+                            Some(Box::new(view))
+                        } else {
+                            phlow::log::warn!("Failed to cast object of type {} to {} when building a view {}",
+                                object.value_type_name(),
+                                std::any::type_name::<#target_type>(),
+                                #full_method_name_string);
+                            None
+                        }
                     }),
                     extension: extension.clone(),
                     full_method_name:  #full_method_name_string.to_string(),
