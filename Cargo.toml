@@ -6,7 +6,6 @@ members = [
     "phlow-derive",
     "phlow-examples",
     "phlow-extensions",
-    "phlow-ffi"
 ]
 
 exclude = [ "target" ]

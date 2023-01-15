@@ -32,10 +32,10 @@ impl ColorExtensions {
     pub fn rgba_for(_this: &Color, view: impl PhlowView) -> impl PhlowView {
         view.list()
             .title("RGBA")
-            .items(|color: &Color, object| {
+            .items(|color: &Color, _object| {
                 phlow_all!(vec![color.red, color.green, color.blue, color.alpha])
             })
-            .item_text(|each: &f32, object| each.to_string())
+            .item_text(|each: &f32, _object| each.to_string())
     }
 }
 
