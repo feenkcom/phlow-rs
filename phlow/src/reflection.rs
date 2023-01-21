@@ -154,32 +154,3 @@ impl AnyVec {
 pub fn type_id_of_val<T: ?Sized + 'static>(_val: &T) -> TypeId {
     TypeId::of::<T>()
 }
-
-#[cfg(test)]
-mod tests {
-    use std::any::type_name;
-    use std::fmt::format;
-    use std::mem::transmute;
-
-    use super::*;
-
-    pub fn type_name_of_val<T: ?Sized>(_val: &T) -> &'static str {
-        type_name::<T>()
-    }
-
-    #[test]
-    pub fn talented_object() {
-        let i = 20;
-        let type_name = type_name_of_val(&i);
-
-        let library = open_self();
-        println!("{:?}", library);
-        println!("{:?}", type_name);
-
-        let func_name = format!("phlow_types_{}", type_name);
-
-        let func: Result<Symbol<unsafe extern "C" fn() -> ()>, libloading::Error> =
-            unsafe { library.get(func_name.as_bytes()) };
-        println!("{:?}", func);
-    }
-}

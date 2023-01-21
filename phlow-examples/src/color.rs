@@ -1,3 +1,4 @@
+#![allow(incomplete_features)]
 #![feature(min_specialization)]
 
 #[macro_use]
@@ -32,10 +33,36 @@ impl ColorExtensions {
     pub fn rgba_for(_this: &Color, view: impl PhlowView) -> impl PhlowView {
         view.list()
             .title("RGBA")
-            .items(|color: &Color, _object| {
+            .items::<Color>(|color| {
                 phlow_all!(vec![color.red, color.green, color.blue, color.alpha])
             })
-            .item_text(|each: &f32, _object| each.to_string())
+            .item_text::<f32>(|each| each.to_string())
+            .send::<f32>(|each| phlow!(each.clone()))
+    }
+
+    #[phlow::view]
+    pub fn components_for(_this: &Color, view: impl PhlowView) -> impl PhlowView {
+        view.columned_list()
+            .title("RGBA Components")
+            .items::<Color>(|color| {
+                phlow_all!(vec![
+                    ("Red", color.red),
+                    ("Green", color.green),
+                    ("Blue", color.blue),
+                    ("Alpha", color.alpha)
+                ])
+            })
+            .column(|column| {
+                column
+                    .title("Component")
+                    .item::<(&str, f32)>(|each| phlow!(each.0))
+            })
+            .column(|column| {
+                column
+                    .title("Value")
+                    .item::<(&str, f32)>(|each| phlow!(each.1))
+            })
+            .send::<(&str, f32)>(|each| phlow!(each.1))
     }
 }
 
@@ -43,6 +70,11 @@ import_extensions!(ExampleExtensions);
 fn main() {
     let color = Color::new();
 
-    let view = phlow!(color).phlow_view_named("rgba_for").unwrap();
+    let view = phlow!(color.clone()).phlow_view_named("rgba_for").unwrap();
+    println!("{}", view);
+
+    let view = phlow!(color.clone())
+        .phlow_view_named("components_for")
+        .unwrap();
     println!("{}", view);
 }

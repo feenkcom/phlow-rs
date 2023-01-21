@@ -1,8 +1,7 @@
 use std::any::Any;
 use std::fmt::{Debug, Display, Formatter};
 
-use crate::reflection::AnyValue;
-use crate::{PhlowObject, PhlowView, PhlowViewMethod};
+use crate::{PhlowObject, PhlowView, PhlowViewMethod, TypedPhlowObject};
 
 #[allow(unused)]
 pub struct PhlowListView {
@@ -11,8 +10,8 @@ pub struct PhlowListView {
     title: String,
     priority: usize,
     items_computation: Box<dyn Fn(&PhlowObject) -> Vec<PhlowObject>>,
-    item_text_computation: Box<dyn Fn(&AnyValue, &PhlowObject) -> String>,
-    send_computation: Box<dyn Fn(&AnyValue, &PhlowObject) -> Option<PhlowObject>>,
+    item_text_computation: Box<dyn Fn(&PhlowObject) -> String>,
+    send_computation: Box<dyn Fn(&PhlowObject) -> Option<PhlowObject>>,
 }
 
 impl PhlowListView {
@@ -23,8 +22,8 @@ impl PhlowListView {
             title: "".to_string(),
             priority: 10,
             items_computation: Box::new(|_object| Default::default()),
-            item_text_computation: Box::new(|_item, object| object.to_string()),
-            send_computation: Box::new(|_item, object| Some(object.clone())),
+            item_text_computation: Box::new(|object| object.to_string()),
+            send_computation: Box::new(|object| Some(object.clone())),
         }
     }
 
@@ -40,12 +39,12 @@ impl PhlowListView {
 
     pub fn items<T: 'static>(
         mut self,
-        items_block: impl Fn(&T, &PhlowObject) -> Vec<PhlowObject> + 'static,
+        items_block: impl Fn(TypedPhlowObject<T>) -> Vec<PhlowObject> + 'static,
     ) -> Self {
-        self.items_computation = Box::new(move |object: &PhlowObject| {
+        self.items_computation = Box::new(move |each_object: &PhlowObject| {
             // the type may differ when passing over ffi boundary...
-            if let Some(reference) = object.value_ref() {
-                items_block(reference, object)
+            if let Some(each_reference) = each_object.value_ref() {
+                items_block(TypedPhlowObject::new(each_object, each_reference))
             } else {
                 vec![]
             }
@@ -55,26 +54,25 @@ impl PhlowListView {
 
     pub fn item_text<T: 'static>(
         mut self,
-        item_text_block: impl Fn(&T, &PhlowObject) -> String + 'static,
+        item_text_block: impl Fn(TypedPhlowObject<T>) -> String + 'static,
     ) -> Self {
-        self.item_text_computation =
-            Box::new(
-                move |each, each_object: &PhlowObject| match each.as_ref_safe::<T>() {
-                    Some(each) => item_text_block(each, each_object),
-                    None => "Error coercing item type".to_string(),
-                },
-            );
+        self.item_text_computation = Box::new(move |each_object| match each_object.value_ref() {
+            Some(each_reference) => {
+                item_text_block(TypedPhlowObject::new(each_object, each_reference))
+            }
+            None => "Error coercing item type".to_string(),
+        });
         self
     }
 
     pub fn send<T: 'static>(
         mut self,
-        item_send_block: impl Fn(&T, &PhlowObject) -> PhlowObject + 'static,
+        item_send_block: impl Fn(TypedPhlowObject<T>) -> PhlowObject + 'static,
     ) -> Self {
-        self.send_computation = Box::new(move |_each, object| {
-            object
-                .value_ref::<T>()
-                .map(|item| item_send_block(item, object))
+        self.send_computation = Box::new(move |each_object| {
+            each_object.value_ref::<T>().map(|each_reference| {
+                item_send_block(TypedPhlowObject::new(each_object, each_reference))
+            })
         });
         self
     }
@@ -84,11 +82,11 @@ impl PhlowListView {
     }
 
     pub fn compute_item_text(&self, item: &PhlowObject) -> String {
-        (self.item_text_computation)(item.value(), item)
+        (self.item_text_computation)(item)
     }
 
     pub fn compute_item_send(&self, item: &PhlowObject) -> PhlowObject {
-        ((self.send_computation)(item.value(), item)).unwrap_or_else(|| item.clone())
+        ((self.send_computation)(item)).unwrap_or_else(|| item.clone())
     }
 }
 

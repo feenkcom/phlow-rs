@@ -1,23 +1,22 @@
 use phlow::{PhlowObject, PhlowView};
+use std::rc::Rc;
 
-#[phlow::extensions(CoreExtensions, f32)]
-impl F32Extensions {
+#[phlow::extensions(CoreExtensions, "Rc<T>")]
+impl<T: 'static> RcExtensions<T> {
     #[phlow::view]
-    fn info_for(_this: &f32, view: impl PhlowView) -> impl PhlowView {
+    fn info_for(_this: &Rc<T>, view: impl PhlowView) -> impl PhlowView {
         view.columned_list()
             .title("Info")
             .priority(5)
-            .items::<f32>(|number| {
+            .items::<Rc<T>>(|reference| {
                 phlow_all!(vec![
-                    ("Float", phlow!(number.clone())),
-                    ("Fract", phlow!(number.fract())),
-                    ("Trunk", phlow!(number.trunc())),
-                    ("Bits", phlow!(format!("{:b}", number.to_bits()))),
+                    ("Strong count", phlow!(Rc::strong_count(&reference))),
+                    ("Weak count", phlow!(Rc::weak_count(&reference))),
                 ])
             })
             .column(|column| {
                 column
-                    .title("Representation")
+                    .title("Key")
                     .item::<(&str, PhlowObject)>(|each| phlow!(each.0.clone()))
             })
             .column(|column| {

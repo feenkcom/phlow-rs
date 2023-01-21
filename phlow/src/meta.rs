@@ -54,7 +54,7 @@ pub struct PhlowViewMethod {
     pub extension: PhlowExtension,
     pub method_name: String,
     pub full_method_name: String,
-    pub source_code: String
+    pub source_code: String,
 }
 
 impl PhlowViewMethod {

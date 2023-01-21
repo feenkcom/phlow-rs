@@ -6,7 +6,10 @@ extern crate syn;
 use proc_macro::TokenStream;
 
 use proc_macro2::Literal;
-use syn::{parse_str, AttributeArgs, ImplItem, ImplItemMethod, ItemImpl, Lit, NestedMeta, Path, PathArguments, Type, File};
+use syn::{
+    parse_str, AttributeArgs, File, ImplItem, ImplItemMethod, ItemImpl, Lit, NestedMeta, Path,
+    PathArguments, Type,
+};
 
 #[proc_macro_attribute]
 pub fn extensions(attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -171,15 +174,13 @@ fn generate_phlow_methods(
 }
 
 fn is_view_method(method: &&ImplItemMethod) -> bool {
-    method.attrs.iter().any(|_each| {
-        //println!("{:#?}", each);
-        true
-    })
+    method.attrs.iter().any(|_each| true)
 }
 
 fn get_source_code(each_method: &ImplItemMethod) -> String {
     let token_stream = TokenStream::from(quote! { #each_method });
-    let method: File = syn::parse_str(token_stream.to_string().as_str()).expect("Parse as syn::File");
+    let method: File =
+        syn::parse_str(token_stream.to_string().as_str()).expect("Parse as syn::File");
     prettyplease::unparse(&method)
 }
 

@@ -1,3 +1,4 @@
+#![allow(incomplete_features)]
 #![feature(specialization)]
 
 #[macro_use]
@@ -24,15 +25,13 @@ define_extensions!(ExampleExtensions);
 impl<T: Debug + 'static> GenericExtensions<T> {
     #[phlow::view]
     pub fn type_for(_this: &Generic<T>, view: impl PhlowView) -> impl PhlowView {
-        view.list()
-            .title("Type")
-            .items(|generic: &Generic<T>, object| {
-                phlow_all!(vec![
-                    format!("Type: {}", object.value_type_name()),
-                    format!("Is some: {}", generic.value.is_some()),
-                    format!("Debug: {:?}", object.to_string()),
-                ])
-            })
+        view.list().title("Type").items::<Generic<T>>(|generic| {
+            phlow_all!(vec![
+                format!("Type: {}", generic.phlow_object().value_type_name()),
+                format!("Is some: {}", generic.value.is_some()),
+                format!("Debug: {:?}", generic),
+            ])
+        })
     }
 }
 

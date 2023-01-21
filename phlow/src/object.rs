@@ -1,5 +1,7 @@
 use std::any::{type_name, TypeId};
-use std::fmt::{Debug, Formatter};
+use std::ffi::c_void;
+use std::fmt::{Binary, Debug, Formatter, Octal, UpperHex};
+use std::ops::Deref;
 use std::rc::Rc;
 
 use crate::{AnyValue, PhlowExtension, PhlowView, PhlowViewMethod, PrintExtensions};
@@ -78,6 +80,10 @@ impl PhlowObject {
         self.0.generic_types.get(index).cloned()
     }
 
+    pub fn generic_phlow_types(&self) -> &[PhlowType] {
+        self.0.generic_types.as_slice()
+    }
+
     pub fn to_string(&self) -> String {
         self.0.phlow_type.value_to_string(self.value())
     }
@@ -88,6 +94,10 @@ impl PhlowObject {
 
     pub fn value_ref<T: 'static>(&self) -> Option<&T> {
         self.value().as_ref_safe()
+    }
+
+    pub fn value_ptr(&self) -> *const c_void {
+        self.value().as_ptr()
     }
 
     pub fn value_type_name(&self) -> &str {
@@ -135,10 +145,98 @@ impl Debug for PhlowObject {
     }
 }
 
+pub trait AsPhlowObject {
+    fn is_phlow_object(&self) -> bool;
+    fn try_into_phlow_object(&self) -> Option<PhlowObject>;
+}
+
+impl<T> AsPhlowObject for T {
+    default fn is_phlow_object(&self) -> bool {
+        false
+    }
+
+    default fn try_into_phlow_object(&self) -> Option<PhlowObject> {
+        None
+    }
+}
+
+impl AsPhlowObject for PhlowObject {
+    fn is_phlow_object(&self) -> bool {
+        true
+    }
+
+    fn try_into_phlow_object(&self) -> Option<PhlowObject> {
+        Some(self.clone())
+    }
+}
+
+impl AsPhlowObject for &PhlowObject {
+    fn is_phlow_object(&self) -> bool {
+        true
+    }
+
+    fn try_into_phlow_object(&self) -> Option<PhlowObject> {
+        Some(self.clone().clone())
+    }
+}
 
 pub struct TypedPhlowObject<'value, T: 'static> {
+    object: &'value PhlowObject,
     reference: &'value T,
-    object: &'value PhlowObject
+}
+
+impl<'value, T: 'static> TypedPhlowObject<'value, T> {
+    pub fn new(object: &'value PhlowObject, reference: &'value T) -> Self {
+        Self { reference, object }
+    }
+
+    pub fn phlow_object(&self) -> &PhlowObject {
+        &self.object
+    }
+}
+
+impl<'value, T: 'static> AsRef<T> for TypedPhlowObject<'value, T> {
+    fn as_ref(&self) -> &'value T {
+        self.reference
+    }
+}
+
+impl<'value, T: 'static> Deref for TypedPhlowObject<'value, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.reference
+    }
+}
+
+impl<'value, T: 'static> ToString for TypedPhlowObject<'value, T> {
+    fn to_string(&self) -> String {
+        self.object.to_string()
+    }
+}
+
+impl<'value, T: Debug + 'static> Debug for TypedPhlowObject<'value, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self.reference, f)
+    }
+}
+
+impl<'value, T: UpperHex + 'static> UpperHex for TypedPhlowObject<'value, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        UpperHex::fmt(self.reference, f)
+    }
+}
+
+impl<'value, T: Octal + 'static> Octal for TypedPhlowObject<'value, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Octal::fmt(self.reference, f)
+    }
+}
+
+impl<'value, T: Binary + 'static> Binary for TypedPhlowObject<'value, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Binary::fmt(self.reference, f)
+    }
 }
 
 #[derive(Debug, Clone)]

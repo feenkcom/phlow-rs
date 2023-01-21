@@ -7,9 +7,9 @@ impl<T: 'static> VecExtensions<T> {
         view.list()
             .title("Items")
             .priority(5)
-            .items(|vec: &Vec<T>, object| {
+            .items::<Vec<T>>(|vec| {
                 vec.iter()
-                    .map(|each| phlow_generic!(each, object))
+                    .map(|each| phlow_generic!(each, vec.phlow_object()))
                     .collect()
             })
     }

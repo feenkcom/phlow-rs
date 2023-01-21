@@ -4,10 +4,10 @@ use phlow::PhlowView;
 impl StringExtensions {
     #[phlow::view]
     fn print_for(_this: &String, view: impl PhlowView) -> impl PhlowView {
-        view.list()
+        view.text()
             .title("Print")
             .priority(5)
-            .items(|string: &String, _object| phlow_all!(vec![string.clone()]))
+            .text::<String>(|string| string.to_owned())
     }
 
     #[phlow::view]
@@ -15,6 +15,6 @@ impl StringExtensions {
         view.list()
             .title("Chars")
             .priority(6)
-            .items(|string: &String, _object| phlow_all!(string.chars()))
+            .items::<String>(|string| phlow_all!(string.chars()))
     }
 }

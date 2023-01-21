@@ -1,5 +1,6 @@
 // printing.rs requires #specialization to detect if type implements Debug or Display
 // to provide some printing capabilities to all types.
+#![allow(incomplete_features)]
 #![cfg_attr(feature = "printing", feature(specialization))]
 
 #[cfg(feature = "phlow-derive")]
@@ -36,23 +37,47 @@ impl<Category, T> Phlow<Category> for T {
 #[macro_export]
 macro_rules! phlow {
     ($var:expr) => {{
-        phlow::PhlowObject::object($var, crate::phlow_extensions_of_val)
+        if let Some(phlow_object) = phlow::AsPhlowObject::try_into_phlow_object(&$var) {
+            phlow_object.clone()
+        }
+        else {
+            phlow::PhlowObject::object($var, crate::phlow_extensions_of_val)
+        }
     }};
     ($var:expr, <$($generic_type:ident),+>) => {{
-        phlow::PhlowObject::object_with_generics(
-            $var,
-            crate::phlow_extensions_of_val,
-            vec![
-                $(
-                    phlow::PhlowType::new::<$generic_type>(crate::phlow_extensions::<$generic_type>)
-                )+
-            ])
+        if let Some(phlow_object) = phlow::AsPhlowObject::try_into_phlow_object(&$var) {
+            phlow_object.clone()
+        }
+        else {
+            phlow::PhlowObject::object_with_generics(
+                $var,
+                crate::phlow_extensions_of_val,
+                vec![
+                    $(
+                        phlow::PhlowType::new::<$generic_type>(crate::phlow_extensions::<$generic_type>)
+                    )+
+                ])
+        }
     }};
     (&$var:expr, $parent:expr) => {{
         phlow::PhlowObject::reference(&$var, $parent, crate::phlow_extensions_of_val)
     }};
     ($var:expr, $parent:expr) => {{
         phlow::PhlowObject::reference($var, $parent, crate::phlow_extensions_of_val)
+    }};
+}
+
+#[macro_export]
+macro_rules! phlow_ref {
+    ($var:expr) => {{
+        if let Some(phlow_object) = phlow::AsPhlowObject::try_into_phlow_object($var) {
+            phlow_object.clone()
+        } else {
+            phlow::PhlowObject::object($var.clone(), crate::phlow_extensions_of_val)
+        }
+    }};
+    ($var:expr, $parent:expr) => {{
+        phlow::PhlowObject::reference($var, &$parent.clone(), crate::phlow_extensions_of_val)
     }};
 }
 

@@ -1,3 +1,4 @@
+#![allow(incomplete_features)]
 #![feature(specialization)]
 
 #[macro_use]
@@ -13,7 +14,7 @@ impl I32Extensions {
     fn hex_for(_this: &i32, view: impl PhlowView) -> impl PhlowView {
         view.list()
             .title("Info")
-            .items(|number: &i32, _object| {
+            .items::<i32>(|number| {
                 phlow_all!(vec![
                     ("Decimal", phlow!(number.clone())),
                     ("Hex", phlow!(format!("{:X}", number))),
@@ -21,10 +22,8 @@ impl I32Extensions {
                     ("Binary", phlow!(format!("{:b}", number)))
                 ])
             })
-            .item_text(|each: &(&str, PhlowObject), _object| {
-                format!("{}: {}", each.0, each.1.to_string())
-            })
-            .send(|each: &(&str, PhlowObject), _object| each.1.clone())
+            .item_text::<(&str, PhlowObject)>(|each| format!("{}: {}", each.0, each.1.to_string()))
+            .send::<(&str, PhlowObject)>(|each| each.1.clone())
     }
 }
 
