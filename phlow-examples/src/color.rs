@@ -57,11 +57,7 @@ impl ColorExtensions {
                     .title("Component")
                     .item::<(&str, f32)>(|each| phlow!(each.0))
             })
-            .column(|column| {
-                column
-                    .title("Value")
-                    .item::<(&str, f32)>(|each| phlow!(each.1))
-            })
+            .column_item::<(&str, f32)>("Value", |each| phlow!(each.1))
             .send::<(&str, f32)>(|each| phlow!(each.1))
     }
 }

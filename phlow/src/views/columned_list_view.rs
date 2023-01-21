@@ -125,6 +125,14 @@ impl PhlowColumnedListView {
         self
     }
 
+    pub fn column_item<T: 'static>(
+        self,
+        title: impl Into<String>,
+        item_computation: impl Fn(TypedPhlowObject<T>) -> PhlowObject + 'static,
+    ) -> Self {
+        self.column(|column| column.title(title).item(item_computation))
+    }
+
     pub fn send<T: 'static>(
         mut self,
         item_send_block: impl Fn(TypedPhlowObject<T>) -> PhlowObject + 'static,
