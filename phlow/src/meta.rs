@@ -50,15 +50,20 @@ impl Debug for PhlowExtension {
 #[derive(Clone)]
 #[repr(C)]
 pub struct PhlowViewMethod {
-    pub method: Rc<dyn Fn(&PhlowObject) -> Option<Box<dyn PhlowView>>>,
+    pub method: Rc<dyn Fn(&PhlowObject, &PhlowViewMethod) -> Option<Box<dyn PhlowView>>>,
     pub extension: PhlowExtension,
     pub method_name: String,
     pub full_method_name: String,
+    pub source_code: String
 }
 
 impl PhlowViewMethod {
     pub fn as_view(&self, object: &PhlowObject) -> Option<Box<dyn PhlowView>> {
-        (self.method)(object)
+        (self.method)(object, self)
+    }
+
+    pub fn source_code(&self) -> &str {
+        self.source_code.as_str()
     }
 }
 

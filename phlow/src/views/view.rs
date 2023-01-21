@@ -2,18 +2,19 @@ use std::any::Any;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
-use crate::{PhlowListView, PhlowObject};
+use crate::{PhlowListView, PhlowObject, PhlowViewMethod};
 
 pub trait PhlowView: Debug + Display + Any {
     fn get_title(&self) -> &str;
     fn get_priority(&self) -> usize;
     fn get_view_type(&self) -> &str;
+    fn get_defining_method(&self) -> &PhlowViewMethod;
     fn view_type() -> &'static str
     where
         Self: Sized;
     fn object(&self) -> &PhlowObject;
     fn list(&self) -> PhlowListView {
-        PhlowListView::new(self.object().clone())
+        PhlowListView::new(self.object().clone(), self.get_defining_method().clone())
     }
     fn as_any(&self) -> &dyn Any;
     fn to_any(self: Box<Self>) -> Box<dyn Any>;
@@ -25,11 +26,15 @@ pub struct PhlowViewContext {}
 #[derive(Debug)]
 pub struct PhlowProtoView {
     object: PhlowObject,
+    defining_method: PhlowViewMethod,
 }
 
 impl PhlowProtoView {
-    pub fn new(object: PhlowObject) -> Self {
-        Self { object }
+    pub fn new(object: PhlowObject, defining_method: PhlowViewMethod) -> Self {
+        Self {
+            object,
+            defining_method,
+        }
     }
 }
 
@@ -50,6 +55,10 @@ impl PhlowView for PhlowProtoView {
 
     fn get_view_type(&self) -> &str {
         Self::view_type()
+    }
+
+    fn get_defining_method(&self) -> &PhlowViewMethod {
+        &self.defining_method
     }
 
     fn view_type() -> &'static str {

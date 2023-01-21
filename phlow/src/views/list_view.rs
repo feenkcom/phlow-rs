@@ -2,27 +2,29 @@ use std::any::Any;
 use std::fmt::{Debug, Display, Formatter};
 
 use crate::reflection::AnyValue;
-use crate::{PhlowObject, PhlowView};
+use crate::{PhlowObject, PhlowView, PhlowViewMethod};
 
 #[allow(unused)]
 pub struct PhlowListView {
     object: PhlowObject,
+    defining_method: PhlowViewMethod,
     title: String,
     priority: usize,
     items_computation: Box<dyn Fn(&PhlowObject) -> Vec<PhlowObject>>,
     item_text_computation: Box<dyn Fn(&AnyValue, &PhlowObject) -> String>,
-    send_computation: Option<Box<dyn Fn(&AnyValue, &PhlowObject) -> Option<PhlowObject>>>,
+    send_computation: Box<dyn Fn(&AnyValue, &PhlowObject) -> Option<PhlowObject>>,
 }
 
 impl PhlowListView {
-    pub fn new(object: PhlowObject) -> Self {
+    pub fn new(object: PhlowObject, defining_method: PhlowViewMethod) -> Self {
         Self {
             object,
+            defining_method,
             title: "".to_string(),
             priority: 10,
             items_computation: Box::new(|_object| Default::default()),
             item_text_computation: Box::new(|_item, object| object.to_string()),
-            send_computation: None,
+            send_computation: Box::new(|_item, object| Some(object.clone())),
         }
     }
 
@@ -69,11 +71,11 @@ impl PhlowListView {
         mut self,
         item_send_block: impl Fn(&T, &PhlowObject) -> PhlowObject + 'static,
     ) -> Self {
-        self.send_computation = Some(Box::new(move |_each, object| {
+        self.send_computation = Box::new(move |_each, object| {
             object
                 .value_ref::<T>()
                 .map(|item| item_send_block(item, object))
-        }));
+        });
         self
     }
 
@@ -86,11 +88,7 @@ impl PhlowListView {
     }
 
     pub fn compute_item_send(&self, item: &PhlowObject) -> PhlowObject {
-        if let Some(ref send_computation) = self.send_computation {
-            (send_computation(item.value(), item)).unwrap_or_else(|| item.clone())
-        } else {
-            item.clone()
-        }
+        ((self.send_computation)(item.value(), item)).unwrap_or_else(|| item.clone())
     }
 }
 
@@ -127,6 +125,10 @@ impl PhlowView for PhlowListView {
 
     fn get_view_type(&self) -> &str {
         Self::view_type()
+    }
+
+    fn get_defining_method(&self) -> &PhlowViewMethod {
+        &self.defining_method
     }
 
     fn view_type() -> &'static str {

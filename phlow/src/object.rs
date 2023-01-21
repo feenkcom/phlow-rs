@@ -135,6 +135,12 @@ impl Debug for PhlowObject {
     }
 }
 
+
+pub struct TypedPhlowObject<'value, T: 'static> {
+    reference: &'value T,
+    object: &'value PhlowObject
+}
+
 #[derive(Debug, Clone)]
 #[repr(C)]
 pub struct PhlowType {

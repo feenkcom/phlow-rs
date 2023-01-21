@@ -6,10 +6,7 @@ extern crate syn;
 use proc_macro::TokenStream;
 
 use proc_macro2::Literal;
-use syn::{
-    parse_str, AttributeArgs, ImplItem, ImplItemMethod, ItemImpl, Lit, NestedMeta, Path,
-    PathArguments, Type,
-};
+use syn::{parse_str, AttributeArgs, ImplItem, ImplItemMethod, ItemImpl, Lit, NestedMeta, Path, PathArguments, Type, File};
 
 #[proc_macro_attribute]
 pub fn extensions(attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -125,7 +122,7 @@ fn generate_phlow_methods(
         .collect();
 
     let get_views = view_methods
-        .iter()
+        .into_iter()
         .map(|each_method| {
             let name_ident = &each_method.sig.ident;
             let method_name = quote! { #name_ident };
@@ -138,11 +135,16 @@ fn generate_phlow_methods(
                 method_name.to_string()
             ));
 
+            let formatted = get_source_code(each_method);
+            let source_code = Literal::string(formatted.as_str());
+
             quote! {
                 phlow::PhlowViewMethod {
-                    method: std::rc::Rc::new(| object: &phlow::PhlowObject | {
+                    method: std::rc::Rc::new(| object: &phlow::PhlowObject, method: &phlow::PhlowViewMethod | {
                         if let Some(typed_reference) = object.value_ref::<#target_type>() {
-                            let view = <#extension_container_type> :: #method_name (typed_reference, phlow::PhlowProtoView::new(object.clone()));
+                            let view = <#extension_container_type> :: #method_name (
+                                typed_reference,
+                                phlow::PhlowProtoView::new(object.clone(), method.clone()));
                             Some(Box::new(view))
                         } else {
                             phlow::log::warn!("Failed to cast object of type {} to {} when building a view {}",
@@ -154,7 +156,8 @@ fn generate_phlow_methods(
                     }),
                     extension: extension.clone(),
                     full_method_name:  #full_method_name_string.to_string(),
-                    method_name:  #method_name_string.to_string()
+                    method_name:  #method_name_string.to_string(),
+                    source_code: #source_code.to_string()
                 }
             }
         })
@@ -172,6 +175,12 @@ fn is_view_method(method: &&ImplItemMethod) -> bool {
         //println!("{:#?}", each);
         true
     })
+}
+
+fn get_source_code(each_method: &ImplItemMethod) -> String {
+    let token_stream = TokenStream::from(quote! { #each_method });
+    let method: File = syn::parse_str(token_stream.to_string().as_str()).expect("Parse as syn::File");
+    prettyplease::unparse(&method)
 }
 
 #[proc_macro_attribute]

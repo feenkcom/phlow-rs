@@ -44,5 +44,5 @@ fn main() {
     let color = Color::new();
 
     let view = phlow!(color).phlow_view_named("rgba_for").unwrap();
-    println!("{}", view)
+    println!("{}", view);
 }
