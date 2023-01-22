@@ -34,15 +34,11 @@ macro_rules! representations_view_for_integer {
                             ("Binary", phlow!(format!("{:b}", number)))
                         ])
                     })
-                    .column(|column| {
-                        column
-                            .title("Representation")
-                            .item::<(&str, phlow::PhlowObject)>(|each| phlow!(each.0.clone()))
+                    .column_item::<(&str, phlow::PhlowObject)>("Representation", |each| {
+                        phlow!(each.0.clone())
                     })
-                    .column(|column| {
-                        column
-                            .title("Value")
-                            .item::<(&str, phlow::PhlowObject)>(|each| phlow!(each.1.clone()))
+                    .column_item::<(&str, phlow::PhlowObject)>("Value", |each| {
+                        phlow!(each.1.clone())
                     })
                     .send::<(&str, phlow::PhlowObject)>(|each| each.1.clone())
             }

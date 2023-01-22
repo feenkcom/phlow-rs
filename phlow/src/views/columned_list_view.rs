@@ -54,6 +54,10 @@ impl PhlowColumn {
         self
     }
 
+    pub fn get_title(&self) -> &str {
+        self.title.as_str()
+    }
+
     pub fn compute_cell_item(&self, row_object: &PhlowObject) -> Option<PhlowObject> {
         (self.item_computation)(row_object)
     }
@@ -148,6 +152,12 @@ impl PhlowColumnedListView {
     pub fn compute_items(&self) -> Vec<PhlowObject> {
         (self.items_computation)(&self.object)
     }
+    pub fn compute_item_send(&self, item: &PhlowObject) -> PhlowObject {
+        ((self.send_computation)(item)).unwrap_or_else(|| item.clone())
+    }
+    pub fn get_columns(&self) -> &[PhlowColumn] {
+        self.columns.as_slice()
+    }
 }
 
 impl Debug for PhlowColumnedListView {
@@ -212,7 +222,7 @@ impl PhlowView for PhlowColumnedListView {
     where
         Self: Sized,
     {
-        "column_list_view"
+        "columned_list_view"
     }
 
     fn object(&self) -> &PhlowObject {

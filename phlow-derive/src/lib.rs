@@ -6,8 +6,9 @@ extern crate syn;
 use proc_macro::TokenStream;
 
 use proc_macro2::Literal;
+use rust_format::Formatter;
 use syn::{
-    parse_str, AttributeArgs, File, ImplItem, ImplItemMethod, ItemImpl, Lit, NestedMeta, Path,
+    parse_str, AttributeArgs, ImplItem, ImplItemMethod, ItemImpl, Lit, NestedMeta, Path,
     PathArguments, Type,
 };
 
@@ -178,10 +179,15 @@ fn is_view_method(method: &&ImplItemMethod) -> bool {
 }
 
 fn get_source_code(each_method: &ImplItemMethod) -> String {
-    let token_stream = TokenStream::from(quote! { #each_method });
-    let method: File =
-        syn::parse_str(token_stream.to_string().as_str()).expect("Parse as syn::File");
-    prettyplease::unparse(&method)
+    let token_stream = quote! { #each_method };
+
+    let config = rust_format::Config::new_str()
+        .edition(rust_format::Edition::Rust2021)
+        .option("reorder_imports", "false")
+        .option("reorder_modules", "false")
+        .option("max_width", "85");
+    let rust_fmt = rust_format::RustFmt::from_config(config);
+    rust_fmt.format_tokens(token_stream).unwrap()
 }
 
 #[proc_macro_attribute]

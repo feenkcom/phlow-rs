@@ -3,9 +3,9 @@ use phlow::PhlowView;
 #[phlow::extensions(CoreExtensions, String)]
 impl StringExtensions {
     #[phlow::view]
-    fn print_for(_this: &String, view: impl PhlowView) -> impl PhlowView {
+    fn string_for(_this: &String, view: impl PhlowView) -> impl PhlowView {
         view.text()
-            .title("Print")
+            .title("String")
             .priority(5)
             .text::<String>(|string| string.to_owned())
     }
