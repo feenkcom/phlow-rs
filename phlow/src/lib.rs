@@ -133,6 +133,17 @@ macro_rules! import_extensions {
             )*
             extensions
         }
+
+        #[inline]
+        pub (crate) fn phlow_type<T: 'static>() -> phlow::PhlowType {
+            phlow::PhlowType::new::<T>(phlow_extensions::<T>)
+        }
+
+        #[inline]
+        pub (crate) fn phlow_type_fn_of_val<T: 'static>(_value: &T) -> fn () -> phlow::PhlowType {
+            phlow_type::<T>
+        }
+
         pub(crate) fn phlow_view_methods<T: 'static>(value: &T) -> Vec<phlow::PhlowViewMethod> {
             phlow_extensions_of_val(value)
                 .into_iter()

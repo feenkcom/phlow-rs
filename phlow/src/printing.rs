@@ -42,7 +42,11 @@ pub fn get_debug_fmt_fn<T>() -> Option<DebugFmtFn> {
     {
         fn fmt_fn() -> Option<DebugFmtFn> {
             Some(Rc::new(|value: &AnyValue, f: &mut Formatter<'_>| {
-                <Self as Debug>::fmt(value.as_ref::<T>(), f)
+                if let Some(reference) = value.as_ref_safe::<T>() {
+                    <Self as Debug>::fmt(reference, f)
+                } else {
+                    Ok(())
+                }
             }))
         }
     }
@@ -70,7 +74,11 @@ pub fn get_display_fmt_fn<T>() -> Option<DisplayFmtFn> {
     {
         fn fmt_fn() -> Option<DisplayFmtFn> {
             Some(Rc::new(|value: &AnyValue, f: &mut Formatter<'_>| {
-                <Self as Display>::fmt(value.as_ref::<T>(), f)
+                if let Some(reference) = value.as_ref_safe::<T>() {
+                    <Self as Display>::fmt(reference, f)
+                } else {
+                    Ok(())
+                }
             }))
         }
     }

@@ -36,8 +36,8 @@ impl PhlowTextView {
         mut self,
         text_block: impl Fn(TypedPhlowObject<T>) -> String + 'static,
     ) -> Self {
-        self.text_computation = Box::new(move |each_object| match each_object.value_ref() {
-            Some(each_reference) => text_block(TypedPhlowObject::new(each_object, each_reference)),
+        self.text_computation = Box::new(move |each_object| match each_object.value_ref::<T>() {
+            Some(each_reference) => text_block(TypedPhlowObject::new(each_object, &each_reference)),
             None => "Error coercing item type".to_string(),
         });
         self

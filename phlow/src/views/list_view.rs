@@ -43,8 +43,8 @@ impl PhlowListView {
     ) -> Self {
         self.items_computation = Box::new(move |each_object: &PhlowObject| {
             // the type may differ when passing over ffi boundary...
-            if let Some(each_reference) = each_object.value_ref() {
-                items_block(TypedPhlowObject::new(each_object, each_reference))
+            if let Some(each_reference) = each_object.value_ref::<T>() {
+                items_block(TypedPhlowObject::new(each_object, &each_reference))
             } else {
                 vec![]
             }
@@ -56,12 +56,13 @@ impl PhlowListView {
         mut self,
         item_text_block: impl Fn(TypedPhlowObject<T>) -> String + 'static,
     ) -> Self {
-        self.item_text_computation = Box::new(move |each_object| match each_object.value_ref() {
-            Some(each_reference) => {
-                item_text_block(TypedPhlowObject::new(each_object, each_reference))
-            }
-            None => "Error coercing item type".to_string(),
-        });
+        self.item_text_computation =
+            Box::new(move |each_object| match each_object.value_ref::<T>() {
+                Some(each_reference) => {
+                    item_text_block(TypedPhlowObject::new(each_object, &each_reference))
+                }
+                None => "Error coercing item type".to_string(),
+            });
         self
     }
 
@@ -71,7 +72,7 @@ impl PhlowListView {
     ) -> Self {
         self.send_computation = Box::new(move |each_object| {
             each_object.value_ref::<T>().map(|each_reference| {
-                item_send_block(TypedPhlowObject::new(each_object, each_reference))
+                item_send_block(TypedPhlowObject::new(each_object, &each_reference))
             })
         });
         self

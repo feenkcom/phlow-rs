@@ -1,4 +1,5 @@
-use std::any::{type_name, TypeId};
+use std::any::{type_name, Any, TypeId};
+use std::cell::{Ref, RefCell, RefMut};
 use std::ffi::c_void;
 use std::fmt::{Binary, Debug, Formatter, Octal, UpperHex};
 use std::ops::Deref;
@@ -12,14 +13,14 @@ struct PhlowObjectData {
     // to make sure that when we browse a reference, it stays alive as long as the previous inspector is alive
     parent: Option<PhlowObject>,
     // when value is reference - the previous inspector must be initialized
-    value: AnyValue,
+    value: RefCell<AnyValue>,
     // meta description of the type with the necessary vtables
     phlow_type: PhlowType,
     generic_types: Vec<PhlowType>,
 }
 
 impl PhlowObject {
-    pub fn object<T: 'static>(
+    pub fn object<T: Any>(
         object: T,
         phlow_extensions_fn: impl Fn(&T) -> Vec<PhlowExtension> + 'static,
     ) -> Self {
@@ -58,7 +59,7 @@ impl PhlowObject {
         Self::new(AnyValue::reference(reference), phlow_type, vec![], parent)
     }
 
-    fn new(
+    pub fn new(
         value: AnyValue,
         phlow_type: PhlowType,
         generic_types: Vec<PhlowType>,
@@ -66,7 +67,7 @@ impl PhlowObject {
     ) -> Self {
         Self(Rc::new(PhlowObjectData {
             parent,
-            value,
+            value: RefCell::new(value),
             phlow_type,
             generic_types,
         }))
@@ -85,15 +86,53 @@ impl PhlowObject {
     }
 
     pub fn to_string(&self) -> String {
-        self.0.phlow_type.value_to_string(self.value())
+        self.with_value(|value| self.0.phlow_type.value_to_string(value))
     }
 
-    pub fn value(&self) -> &AnyValue {
-        &self.0.value
+    /// Return true if phlow object contains a value - object or reference.
+    /// Note, that even though has_value() may return true, it does not mean
+    /// that the value can actually be taken, because it does not check
+    /// the runtime type.
+    pub fn has_value(&self) -> bool {
+        self.0.value.borrow().has_value()
     }
 
-    pub fn value_ref<T: 'static>(&self) -> Option<&T> {
-        self.value().as_ref_safe()
+    /// Take the ownership of the value leaving AnyValue::None in its place.
+    /// The value can only be taken if phlow object owned it
+    pub fn take_value<T: Any>(&self) -> Option<T> {
+        let existing = self.0.value.replace(AnyValue::None);
+        existing.take_value()
+    }
+
+    /// Replace an existing value with the given object and returns the previous object if any.
+    pub fn replace_value<T: Any>(&self, object: T) -> Option<T> {
+        let existing = self.0.value.replace(AnyValue::object(object));
+        existing.take_value()
+    }
+
+    /// Attempts to clone the value
+    pub fn clone_value<T: Any + Clone>(&self) -> Option<T> {
+        self.0.value.borrow().clone_value()
+    }
+
+    pub fn with_value<R>(&self, op: impl FnOnce(&AnyValue) -> R) -> R {
+        op(&self.0.value.borrow())
+    }
+
+    pub fn value(&self) -> Ref<AnyValue> {
+        self.0.value.borrow()
+    }
+
+    pub fn value_ref<T: Any>(&self) -> Option<Ref<T>> {
+        Ref::filter_map(self.value(), |value| value.as_ref_safe())
+            .map(|reference| Some(reference))
+            .unwrap_or(None)
+    }
+
+    pub fn value_mut<T: Any>(&mut self) -> Option<RefMut<T>> {
+        RefMut::filter_map(self.0.value.borrow_mut(), |value| value.as_mut_safe())
+            .map(|reference| Some(reference))
+            .unwrap_or(None)
     }
 
     pub fn value_ptr(&self) -> *const c_void {

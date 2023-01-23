@@ -147,7 +147,7 @@ fn generate_phlow_methods(
                     method: std::rc::Rc::new(| object: &phlow::PhlowObject, method: &phlow::PhlowViewMethod | {
                         if let Some(typed_reference) = object.value_ref::<#target_type>() {
                             let view = <#extension_container_type> :: #method_name (
-                                typed_reference,
+                                &typed_reference,
                                 phlow::PhlowProtoView::new(object.clone(), method.clone()));
                             Some(Box::new(view))
                         } else {

@@ -34,7 +34,7 @@ pub struct AnyObject {
 
 #[allow(unused)]
 impl AnyObject {
-    pub fn new<T: 'static>(object: T) -> Self {
+    pub fn new<T: Any>(object: T) -> Self {
         let object_box = Box::new(object);
         let object_ptr = object_box.as_ref() as *const T as *const c_void;
 
@@ -44,7 +44,7 @@ impl AnyObject {
         }
     }
 
-    pub fn as_ref<T: 'static>(&self) -> &T {
+    pub fn as_ref<T: Any>(&self) -> &T {
         self.as_ref_safe().unwrap()
     }
 
@@ -52,8 +52,23 @@ impl AnyObject {
         self.object_ptr
     }
 
-    pub fn as_ref_safe<T: 'static>(&self) -> Option<&T> {
+    pub fn as_ref_safe<T: Any>(&self) -> Option<&T> {
         self.object.downcast_ref()
+    }
+
+    pub fn as_mut_safe<T: Any>(&mut self) -> Option<&mut T> {
+        self.object.downcast_mut()
+    }
+
+    pub fn take_value<T: Any>(self) -> Option<T> {
+        match self.object.downcast::<T>() {
+            Ok(value) => Some(*value),
+            Err(value) => None,
+        }
+    }
+
+    pub fn clone_value<T: Any + Clone>(&self) -> Option<T> {
+        self.object.downcast_ref::<T>().cloned()
     }
 }
 
@@ -83,8 +98,20 @@ impl AnyReference {
         }
     }
 
+    pub fn as_mut_safe<T: Any>(&mut self) -> Option<&mut T> {
+        if self.type_id == TypeId::of::<T>() {
+            Some(unsafe { &mut *(self.reference_ptr as *mut T) })
+        } else {
+            None
+        }
+    }
+
     pub fn as_ptr(&self) -> *const c_void {
         self.reference_ptr
+    }
+
+    pub fn clone_value<T: Any + Clone>(&self) -> Option<T> {
+        self.as_ref_safe().cloned()
     }
 }
 
@@ -92,6 +119,7 @@ impl AnyReference {
 pub enum AnyValue {
     Object(AnyObject),
     Reference(AnyReference),
+    None,
 }
 
 impl AnyValue {
@@ -103,17 +131,35 @@ impl AnyValue {
         Self::Reference(AnyReference::new(reference))
     }
 
-    pub fn as_ref<T: 'static>(&self) -> &T {
-        match self {
-            AnyValue::Object(object) => object.as_ref(),
-            AnyValue::Reference(reference) => reference.as_ref(),
-        }
-    }
-
     pub fn as_ref_safe<T: 'static>(&self) -> Option<&T> {
         match self {
             AnyValue::Object(object) => object.as_ref_safe(),
             AnyValue::Reference(reference) => reference.as_ref_safe(),
+            AnyValue::None => None,
+        }
+    }
+
+    pub fn as_mut_safe<T: 'static>(&mut self) -> Option<&mut T> {
+        match self {
+            AnyValue::Object(object) => object.as_mut_safe(),
+            AnyValue::Reference(reference) => reference.as_mut_safe(),
+            AnyValue::None => None,
+        }
+    }
+
+    pub fn take_value<T: Any>(self) -> Option<T> {
+        match self {
+            AnyValue::Object(value) => value.take_value(),
+            AnyValue::Reference(_) => None,
+            AnyValue::None => None,
+        }
+    }
+
+    pub fn clone_value<T: Any + Clone>(&self) -> Option<T> {
+        match self {
+            AnyValue::Object(value) => value.clone_value(),
+            AnyValue::Reference(reference) => reference.clone_value(),
+            AnyValue::None => None,
         }
     }
 
@@ -121,6 +167,15 @@ impl AnyValue {
         match self {
             AnyValue::Object(object) => object.as_ptr(),
             AnyValue::Reference(reference) => reference.as_ptr(),
+            AnyValue::None => std::ptr::null(),
+        }
+    }
+
+    pub fn has_value(&self) -> bool {
+        match self {
+            AnyValue::Object(_) => true,
+            AnyValue::Reference(_) => true,
+            AnyValue::None => false,
         }
     }
 }
