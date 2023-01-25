@@ -1,0 +1,15 @@
+[package]
+name = "phlow-ffi"
+version = "1.0.0"
+authors = ["feenk gmbh <contact@feenk.com>"]
+repository = "https://github.com/feenkcom/phlow-rs/tree/main/phlow-ffi"
+edition = "2021"
+license = "MIT"
+keywords = ["phlow","meta", "ffi"]
+description = "Provides C-like api to the phlow crates"
+
+[dependencies]
+phlow = { version = "1" }
+value-box = { version = "2", features = [ "phlow" ] }
+string-box = "1"
+env_logger = "0.10"
