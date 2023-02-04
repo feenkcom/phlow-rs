@@ -1,4 +1,4 @@
-use crate::{PhlowObject, PhlowView, PhlowViewMethod, TypedPhlowObject};
+use crate::{PhlowObject, PhlowView, PhlowViewMethod, TypedPhlowObject, TypedPhlowObjectMut};
 use std::any::Any;
 use std::fmt::{Debug, Display, Formatter};
 
@@ -38,6 +38,19 @@ impl PhlowTextView {
     ) -> Self {
         self.text_computation = Box::new(move |each_object| match each_object.value_ref::<T>() {
             Some(each_reference) => text_block(TypedPhlowObject::new(each_object, &each_reference)),
+            None => "Error coercing item type".to_string(),
+        });
+        self
+    }
+
+    pub fn text_mut<T: 'static>(
+        mut self,
+        text_block: impl Fn(TypedPhlowObjectMut<T>) -> String + 'static,
+    ) -> Self {
+        self.text_computation = Box::new(move |each_object| match each_object.value_mut::<T>() {
+            Some(mut each_reference) => {
+                text_block(TypedPhlowObjectMut::new(each_object, &mut each_reference))
+            }
             None => "Error coercing item type".to_string(),
         });
         self

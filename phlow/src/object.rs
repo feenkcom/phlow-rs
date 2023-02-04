@@ -2,7 +2,7 @@ use std::any::{type_name, Any, TypeId};
 use std::cell::{Ref, RefCell, RefMut};
 use std::ffi::c_void;
 use std::fmt::{Binary, Debug, Formatter, Octal, UpperHex};
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 use crate::{AnyValue, PhlowExtension, PhlowView, PhlowViewMethod, PrintExtensions};
@@ -232,10 +232,6 @@ impl<'value, T: 'static> TypedPhlowObject<'value, T> {
     pub fn phlow_object(&self) -> &PhlowObject {
         &self.object
     }
-
-    pub fn borrow_mut(&self) -> RefMut<'value, T> {
-        self.object.value_mut::<T>().unwrap()
-    }
 }
 
 impl<'value, T: 'static> AsRef<T> for TypedPhlowObject<'value, T> {
@@ -277,6 +273,77 @@ impl<'value, T: Octal + 'static> Octal for TypedPhlowObject<'value, T> {
 }
 
 impl<'value, T: Binary + 'static> Binary for TypedPhlowObject<'value, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Binary::fmt(self.reference, f)
+    }
+}
+
+pub struct TypedPhlowObjectMut<'value, T: 'static> {
+    object: &'value PhlowObject,
+    reference: &'value mut T,
+}
+
+impl<'value, T: 'static> TypedPhlowObjectMut<'value, T> {
+    pub fn new(object: &'value PhlowObject, reference: &'value mut T) -> Self {
+        Self { reference, object }
+    }
+
+    pub fn phlow_object(&self) -> &PhlowObject {
+        &self.object
+    }
+}
+
+impl<'value, T: 'static> AsRef<T> for TypedPhlowObjectMut<'value, T> {
+    fn as_ref(&self) -> &T {
+        self.reference
+    }
+}
+
+impl<'value, T: 'static> AsMut<T> for TypedPhlowObjectMut<'value, T> {
+    fn as_mut(&mut self) -> &mut T {
+        self.reference
+    }
+}
+
+impl<'value, T: 'static> Deref for TypedPhlowObjectMut<'value, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.reference
+    }
+}
+
+impl<'value, T: 'static> DerefMut for TypedPhlowObjectMut<'value, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.reference
+    }
+}
+
+impl<'value, T: 'static> ToString for TypedPhlowObjectMut<'value, T> {
+    fn to_string(&self) -> String {
+        self.object.to_string()
+    }
+}
+
+impl<'value, T: Debug + 'static> Debug for TypedPhlowObjectMut<'value, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self.reference, f)
+    }
+}
+
+impl<'value, T: UpperHex + 'static> UpperHex for TypedPhlowObjectMut<'value, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        UpperHex::fmt(self.reference, f)
+    }
+}
+
+impl<'value, T: Octal + 'static> Octal for TypedPhlowObjectMut<'value, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Octal::fmt(self.reference, f)
+    }
+}
+
+impl<'value, T: Binary + 'static> Binary for TypedPhlowObjectMut<'value, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         Binary::fmt(self.reference, f)
     }
