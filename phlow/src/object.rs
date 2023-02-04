@@ -129,7 +129,7 @@ impl PhlowObject {
             .unwrap_or(None)
     }
 
-    pub fn value_mut<T: Any>(&mut self) -> Option<RefMut<T>> {
+    pub fn value_mut<T: Any>(&self) -> Option<RefMut<T>> {
         RefMut::filter_map(self.0.value.borrow_mut(), |value| value.as_mut_safe())
             .map(|reference| Some(reference))
             .unwrap_or(None)
@@ -231,6 +231,10 @@ impl<'value, T: 'static> TypedPhlowObject<'value, T> {
 
     pub fn phlow_object(&self) -> &PhlowObject {
         &self.object
+    }
+
+    pub fn borrow_mut(&self) -> RefMut<'value, T> {
+        self.object.value_mut::<T>().unwrap()
     }
 }
 
