@@ -19,6 +19,6 @@ mod phlow_view;
 mod phlow_view_method;
 
 #[no_mangle]
-pub fn phlow_init_env_logger() {
-    env_logger::init();
+pub fn phlow_test() -> bool {
+    return true;
 }
