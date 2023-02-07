@@ -1,13 +1,13 @@
 use phlow::{PhlowObject, PhlowView, PhlowViewMethod};
 use string_box::StringBox;
-use value_box::{BoxerError, ReturnBoxerResult, ValueBox, ValueBoxPointer};
+use value_box::{BoxerError, ReturnBoxerResult, ValueBox, ValueBoxIntoRaw, ValueBoxPointer};
 
 #[no_mangle]
 pub extern "C" fn phlow_object_get_view_methods(
     phlow_object: *mut ValueBox<PhlowObject>,
 ) -> *mut ValueBox<Vec<PhlowViewMethod>> {
     phlow_object
-        .with_ref_ok(|phlow_object| phlow_object.phlow_view_methods())
+        .with_ref_ok(|phlow_object| ValueBox::new(phlow_object.phlow_view_methods()))
         .into_raw()
 }
 
@@ -16,7 +16,7 @@ pub extern "C" fn phlow_object_get_views(
     phlow_object: *mut ValueBox<PhlowObject>,
 ) -> *mut ValueBox<Vec<Box<dyn PhlowView>>> {
     phlow_object
-        .with_ref_ok(|phlow_object| phlow_object.phlow_views())
+        .with_ref_ok(|phlow_object| ValueBox::new(phlow_object.phlow_views()))
         .into_raw()
 }
 
@@ -30,6 +30,7 @@ pub extern "C" fn phlow_object_get_view_named(
             view_name.with_ref(|view_name| {
                 phlow_object
                     .phlow_view_named(view_name.as_str())
+                    .map(|view| ValueBox::new(view))
                     .ok_or_else(|| {
                         BoxerError::AnyError(
                             format!("View named {} does not exist", view_name.as_str()).into(),

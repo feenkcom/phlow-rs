@@ -1,6 +1,6 @@
 use phlow::{PhlowColumnedListView, PhlowObject, PhlowView};
 use string_box::StringBox;
-use value_box::{BoxerError, ReturnBoxerResult, ValueBox, ValueBoxPointer};
+use value_box::{BoxerError, ReturnBoxerResult, ValueBox, ValueBoxIntoRaw, ValueBoxPointer};
 
 use crate::with_view;
 
@@ -9,7 +9,7 @@ pub extern "C" fn phlow_columned_list_view_compute_items(
     phlow_view: *mut ValueBox<Box<dyn PhlowView>>,
 ) -> *mut ValueBox<Vec<PhlowObject>> {
     with_view(phlow_view, |phlow_view: &PhlowColumnedListView| {
-        Ok(phlow_view.compute_items())
+        Ok(ValueBox::new(phlow_view.compute_items()))
     })
     .into_raw()
 }
@@ -102,7 +102,7 @@ pub extern "C" fn phlow_columned_list_view_compute_item_send_at(
                 .ok_or_else(|| {
                     BoxerError::AnyError(format!("Item at {} does not exist", index).into())
                 })
-                .map(|item| phlow_view.compute_item_send(item))
+                .map(|item| ValueBox::new(phlow_view.compute_item_send(item)))
         })
     })
     .into_raw()
