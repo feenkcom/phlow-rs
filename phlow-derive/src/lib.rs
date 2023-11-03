@@ -7,42 +7,32 @@ use proc_macro::TokenStream;
 
 use proc_macro2::Literal;
 use rust_format::Formatter;
-use syn::{
-    parse_str, AttributeArgs, ImplItem, ImplItemMethod, ItemImpl, Lit, NestedMeta, Path,
-    PathArguments, Type,
-};
+use syn::parse::Parser;
+use syn::punctuated::Punctuated;
+use syn::{ImplItem, ImplItemFn, ItemImpl, Path, PathArguments, Type};
 
 #[proc_macro_attribute]
-pub fn extensions(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn extensions(args: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemImpl);
-    let mut attributes = parse_macro_input!(attr as AttributeArgs);
 
-    let reflection_impl = match attributes.len() {
-        2 => generate_phlow_implementation_for_external_type(
-            input,
-            attributes.remove(0),
-            extract_target_type(attributes.remove(0)),
-        ),
-        _ => panic!("Must contain two arguments: extensions package and target type"),
-    };
+    let tokens = args.clone();
+    let parser = Punctuated::<Path, Token![,]>::parse_separated_nonempty;
+    let mut parsed = parser
+        .parse(tokens)
+        .unwrap()
+        .into_iter()
+        .collect::<Vec<Path>>();
+    if parsed.len() != 2 {
+        panic!("Must contain two arguments: extensions package and a target type");
+    }
+
+    let category = parsed.remove(0);
+    let target_type = parsed.remove(0);
+
+    let reflection_impl =
+        generate_phlow_implementation_for_external_type(input, category, target_type);
 
     TokenStream::from(reflection_impl)
-}
-
-fn extract_target_type(attribute: NestedMeta) -> proc_macro2::TokenStream {
-    let tokens = match attribute {
-        NestedMeta::Meta(meta) => {
-            quote!( #meta )
-        }
-        NestedMeta::Lit(literal) => match literal {
-            Lit::Str(string) => {
-                let type_name = parse_str::<Path>(string.value().as_str()).unwrap();
-                quote!( #type_name )
-            }
-            _ => panic!("Must be a string"),
-        },
-    };
-    tokens
 }
 
 fn extract_generics(t: &Type) -> Option<proc_macro2::TokenStream> {
@@ -71,8 +61,8 @@ fn extract_generics(t: &Type) -> Option<proc_macro2::TokenStream> {
 
 fn generate_phlow_implementation_for_external_type(
     implementation: ItemImpl,
-    extension_category: NestedMeta,
-    extension_target_type: proc_macro2::TokenStream,
+    extension_category: Path,
+    extension_target_type: Path,
 ) -> proc_macro2::TokenStream {
     let self_type = &implementation.self_ty;
     let extension_struct_name = quote! { #self_type };
@@ -113,11 +103,11 @@ fn generate_phlow_methods(
     target_type: proc_macro2::TokenStream,
     implementation: &ItemImpl,
 ) -> proc_macro2::TokenStream {
-    let view_methods: Vec<&ImplItemMethod> = implementation
+    let view_methods: Vec<&ImplItemFn> = implementation
         .items
         .iter()
         .map(|each| match each {
-            ImplItem::Method(method) => Some(method),
+            ImplItem::Fn(method) => Some(method),
             _ => None,
         })
         .filter(|each| each.is_some())
@@ -144,7 +134,7 @@ fn generate_phlow_methods(
 
             quote! {
                 phlow::PhlowViewMethod {
-                    method: std::rc::Rc::new(| object: &phlow::PhlowObject, method: &phlow::PhlowViewMethod | {
+                    method: std::sync::Arc::new(| object: &phlow::PhlowObject, method: &phlow::PhlowViewMethod | {
                         if let Some(typed_reference) = object.value_ref::<#target_type>() {
                             let view = <#extension_container_type> :: #method_name (
                                 &typed_reference,
@@ -174,11 +164,11 @@ fn generate_phlow_methods(
     }
 }
 
-fn is_view_method(method: &&ImplItemMethod) -> bool {
+fn is_view_method(method: &&ImplItemFn) -> bool {
     method.attrs.iter().any(|_each| true)
 }
 
-fn get_source_code(each_method: &ImplItemMethod) -> String {
+fn get_source_code(each_method: &ImplItemFn) -> String {
     let token_stream = quote! { #each_method };
 
     let config = rust_format::Config::new_str()
