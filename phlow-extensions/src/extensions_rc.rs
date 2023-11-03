@@ -1,7 +1,7 @@
 use phlow::{PhlowObject, PhlowView};
 use std::rc::Rc;
 
-#[phlow::extensions(CoreExtensions, "Rc<T>")]
+#[phlow::extensions(CoreExtensions, Rc<T>)]
 impl<T: 'static> RcExtensions<T> {
     #[phlow::view]
     fn info_for(_this: &Rc<T>, view: impl PhlowView) -> impl PhlowView {

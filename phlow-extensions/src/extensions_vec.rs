@@ -1,6 +1,6 @@
 use phlow::PhlowView;
 
-#[phlow::extensions(CoreExtensions, "Vec<T>")]
+#[phlow::extensions(CoreExtensions, Vec<T>)]
 impl<T: 'static> VecExtensions<T> {
     #[phlow::view]
     fn items_for(_this: &Vec<T>, view: impl PhlowView) -> impl PhlowView {
