@@ -1,6 +1,7 @@
-use crate::{PhlowObject, PhlowView, PhlowViewMethod, TypedPhlowObject, TypedPhlowObjectMut};
 use std::any::Any;
 use std::fmt::{Debug, Display, Formatter};
+
+use crate::{PhlowObject, PhlowView, PhlowViewMethod, TypedPhlowObject, TypedPhlowObjectMut};
 
 #[allow(unused)]
 pub struct PhlowTextView {
@@ -63,7 +64,7 @@ impl PhlowTextView {
 
 impl Debug for PhlowTextView {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PhlowColumnListView").finish()
+        f.debug_struct("PhlowTextView").finish()
     }
 }
 
@@ -111,5 +112,55 @@ impl PhlowView for PhlowTextView {
 
     fn to_any(self: Box<Self>) -> Box<dyn Any> {
         self
+    }
+
+    #[cfg(feature = "view-specification")]
+    fn as_view_specification_builder(&self) -> &dyn crate::AsPhlowViewSpecification {
+        self
+    }
+}
+
+#[cfg(feature = "view-specification")]
+mod specification {
+    use serde::Serialize;
+
+    use crate::{
+        AsPhlowViewSpecification, PhlowViewSpecification, PhlowViewSpecificationDataTransport,
+        PhlowViewSpecificationListingItem,
+    };
+
+    use super::*;
+
+    #[derive(Debug, Clone, Serialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct PhlowTextViewSpecification {
+        title: String,
+        priority: usize,
+        data_transport: PhlowViewSpecificationDataTransport,
+        string: String,
+        method_selector: String,
+    }
+
+    #[typetag::serialize(name = "GtPhlowTextEditorViewSpecification")]
+    impl PhlowViewSpecification for PhlowTextViewSpecification {
+        fn retrieve_items(&self) -> Vec<Box<dyn PhlowViewSpecificationListingItem>> {
+            vec![]
+        }
+
+        fn retrieve_sent_item(&self, item: &PhlowObject) -> PhlowObject {
+            item.clone()
+        }
+    }
+
+    impl AsPhlowViewSpecification for PhlowTextView {
+        fn create_view_specification(&self) -> Option<Box<dyn PhlowViewSpecification>> {
+            Some(Box::new(PhlowTextViewSpecification {
+                title: self.get_title().to_string(),
+                priority: self.get_priority(),
+                data_transport: PhlowViewSpecificationDataTransport::Included,
+                string: self.compute_text(),
+                method_selector: self.get_defining_method().full_method_name.clone(),
+            }))
+        }
     }
 }

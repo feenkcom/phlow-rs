@@ -1,13 +1,15 @@
 use std::any::Any;
 use std::fmt::{Debug, Display, Formatter};
+use std::sync::Arc;
 
 use crate::{PhlowObject, PhlowView, PhlowViewMethod, TypedPhlowObject};
 
+#[derive(Clone)]
 pub struct PhlowColumn {
     title: String,
     index: usize,
-    item_computation: Box<dyn Fn(&PhlowObject) -> Option<PhlowObject>>,
-    text_computation: Box<dyn Fn(&PhlowObject) -> String>,
+    item_computation: Arc<dyn Fn(&PhlowObject) -> Option<PhlowObject>>,
+    text_computation: Arc<dyn Fn(&PhlowObject) -> String>,
 }
 
 impl PhlowColumn {
@@ -15,8 +17,8 @@ impl PhlowColumn {
         Self {
             title: "Column".to_string(),
             index: 0,
-            item_computation: Box::new(|object| Some(object.clone())),
-            text_computation: Box::new(|object| object.to_string()),
+            item_computation: Arc::new(|object| Some(object.clone())),
+            text_computation: Arc::new(|object| object.to_string()),
         }
     }
 
@@ -29,7 +31,7 @@ impl PhlowColumn {
         mut self,
         item_computation: impl Fn(TypedPhlowObject<T>) -> PhlowObject + 'static,
     ) -> Self {
-        self.item_computation = Box::new(move |each_object| {
+        self.item_computation = Arc::new(move |each_object| {
             each_object.value_ref::<T>().map(|each_reference| {
                 item_computation(TypedPhlowObject::new(each_object, &each_reference))
             })
@@ -42,7 +44,7 @@ impl PhlowColumn {
         text_block: impl Fn(TypedPhlowObject<T>) -> String + 'static,
     ) -> Self {
         self.text_computation =
-            Box::new(
+            Arc::new(
                 move |each_object: &PhlowObject| match each_object.value_ref::<T>() {
                     Some(each_reference) => {
                         text_block(TypedPhlowObject::new(each_object, &each_reference))
@@ -67,14 +69,15 @@ impl PhlowColumn {
 }
 
 #[allow(unused)]
+#[derive(Clone)]
 pub struct PhlowColumnedListView {
     object: PhlowObject,
     defining_method: PhlowViewMethod,
     title: String,
     priority: usize,
     columns: Vec<PhlowColumn>,
-    items_computation: Box<dyn Fn(&PhlowObject) -> Vec<PhlowObject>>,
-    send_computation: Box<dyn Fn(&PhlowObject) -> Option<PhlowObject>>,
+    items_computation: Arc<dyn Fn(&PhlowObject) -> Vec<PhlowObject>>,
+    send_computation: Arc<dyn Fn(&PhlowObject) -> Option<PhlowObject>>,
 }
 
 impl PhlowColumnedListView {
@@ -85,8 +88,8 @@ impl PhlowColumnedListView {
             title: "".to_string(),
             priority: 10,
             columns: vec![],
-            items_computation: Box::new(|_object| Default::default()),
-            send_computation: Box::new(|object| Some(object.clone())),
+            items_computation: Arc::new(|_object| Default::default()),
+            send_computation: Arc::new(|object| Some(object.clone())),
         }
     }
 
@@ -104,7 +107,7 @@ impl PhlowColumnedListView {
         mut self,
         items_block: impl Fn(TypedPhlowObject<T>) -> Vec<PhlowObject> + 'static,
     ) -> Self {
-        self.items_computation = Box::new(move |object: &PhlowObject| {
+        self.items_computation = Arc::new(move |object: &PhlowObject| {
             // the type may differ when passing over ffi boundary...
             if let Some(reference) = object.value_ref::<T>() {
                 items_block(TypedPhlowObject::new(object, &reference))
@@ -140,7 +143,7 @@ impl PhlowColumnedListView {
         mut self,
         item_send_block: impl Fn(TypedPhlowObject<T>) -> PhlowObject + 'static,
     ) -> Self {
-        self.send_computation = Box::new(move |object| {
+        self.send_computation = Arc::new(move |object| {
             object
                 .value_ref::<T>()
                 .map(|item| item_send_block(TypedPhlowObject::new(object, &item)))
@@ -234,5 +237,103 @@ impl PhlowView for PhlowColumnedListView {
 
     fn to_any(self: Box<Self>) -> Box<dyn Any> {
         self
+    }
+
+    #[cfg(feature = "view-specification")]
+    fn as_view_specification_builder(&self) -> &dyn crate::AsPhlowViewSpecification {
+        self
+    }
+}
+
+#[cfg(feature = "view-specification")]
+mod specification {
+    use super::*;
+
+    use crate::views::view_specification::{
+        PhlowViewSpecificationItemValue, PhlowViewSpecificationRowValue,
+    };
+    use crate::{
+        AsPhlowViewSpecification, PhlowViewSpecification, PhlowViewSpecificationDataTransport,
+        PhlowViewSpecificationListingItem, PhlowViewSpecificationListingType,
+    };
+    use serde::Serialize;
+
+    #[derive(Debug, Clone, Serialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct PhlowColumnedListViewSpecification {
+        title: String,
+        priority: usize,
+        data_transport: PhlowViewSpecificationDataTransport,
+        method_selector: String,
+        column_specifications: Vec<PhlowColumnSpecification>,
+        #[serde(skip)]
+        phlow_view: PhlowColumnedListView,
+    }
+
+    #[derive(Debug, Clone, Serialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct PhlowColumnSpecification {
+        title: String,
+        cell_width: Option<f32>,
+        spawns_objects: bool,
+        r#type: PhlowViewSpecificationListingType,
+        properties: Vec<String>,
+    }
+
+    #[typetag::serialize(name = "GtPhlowColumnedListViewSpecification")]
+    impl PhlowViewSpecification for PhlowColumnedListViewSpecification {
+        fn retrieve_items(&self) -> Vec<Box<dyn PhlowViewSpecificationListingItem>> {
+            self.phlow_view
+                .compute_items()
+                .into_iter()
+                .map(|each| {
+                    Box::new(PhlowViewSpecificationRowValue {
+                        phlow_object: each.clone(),
+                        column_values: self
+                            .phlow_view
+                            .columns
+                            .iter()
+                            .map(|column| {
+                                column
+                                    .compute_cell_item(&each)
+                                    .map(|cell_object| column.compute_cell_text(&cell_object))
+                                    .unwrap_or_else(|| "".to_string())
+                            })
+                            .map(|cell_text| PhlowViewSpecificationItemValue {
+                                phlow_object: each.clone(),
+                                item_text: cell_text,
+                            })
+                            .collect(),
+                    }) as Box<dyn PhlowViewSpecificationListingItem>
+                })
+                .collect()
+        }
+
+        fn retrieve_sent_item(&self, item: &PhlowObject) -> PhlowObject {
+            self.phlow_view.compute_item_send(item)
+        }
+    }
+
+    impl AsPhlowViewSpecification for PhlowColumnedListView {
+        fn create_view_specification(&self) -> Option<Box<dyn PhlowViewSpecification>> {
+            Some(Box::new(PhlowColumnedListViewSpecification {
+                title: self.get_title().to_string(),
+                priority: self.get_priority(),
+                data_transport: PhlowViewSpecificationDataTransport::Lazy,
+                method_selector: self.get_defining_method().full_method_name.clone(),
+                column_specifications: self
+                    .columns
+                    .iter()
+                    .map(|column| PhlowColumnSpecification {
+                        title: column.get_title().to_string(),
+                        cell_width: None,
+                        spawns_objects: false,
+                        r#type: PhlowViewSpecificationListingType::Text,
+                        properties: vec![],
+                    })
+                    .collect(),
+                phlow_view: self.clone(),
+            }))
+        }
     }
 }

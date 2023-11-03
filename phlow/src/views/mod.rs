@@ -7,3 +7,11 @@ mod columned_list_view;
 mod list_view;
 mod text_view;
 mod view;
+
+#[cfg(feature = "view-specification")]
+mod view_specification;
+#[cfg(feature = "view-specification")]
+pub use view_specification::{
+    AsPhlowViewSpecification, PhlowViewSpecification, PhlowViewSpecificationDataTransport,
+    PhlowViewSpecificationListingItem, PhlowViewSpecificationListingType,
+};

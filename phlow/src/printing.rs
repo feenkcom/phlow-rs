@@ -1,6 +1,6 @@
 use crate::AnyValue;
 use std::fmt::{Debug, Display, Formatter, Result};
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct Fmt<F>(pub F)
 where
@@ -24,7 +24,8 @@ where
     }
 }
 
-pub(crate) type DebugFmtFn = Rc<dyn Fn(&AnyValue, &mut Formatter) -> Result>;
+pub(crate) type DebugFmtFn =
+    Arc<dyn Fn(&AnyValue, &mut Formatter) -> Result + Send + Sync + 'static>;
 
 #[cfg(feature = "printing")]
 pub fn get_debug_fmt_fn<T>() -> Option<DebugFmtFn> {
@@ -41,7 +42,7 @@ pub fn get_debug_fmt_fn<T>() -> Option<DebugFmtFn> {
         T: Debug + 'static,
     {
         fn fmt_fn() -> Option<DebugFmtFn> {
-            Some(Rc::new(|value: &AnyValue, f: &mut Formatter<'_>| {
+            Some(Arc::new(|value: &AnyValue, f: &mut Formatter<'_>| {
                 if let Some(reference) = value.as_ref_safe::<T>() {
                     <Self as Debug>::fmt(reference, f)
                 } else {
@@ -57,7 +58,8 @@ pub fn get_debug_fmt_fn<T>() -> Option<DebugFmtFn> {
     None
 }
 
-pub(crate) type DisplayFmtFn = Rc<dyn Fn(&AnyValue, &mut Formatter) -> Result>;
+pub(crate) type DisplayFmtFn =
+    Arc<dyn Fn(&AnyValue, &mut Formatter) -> Result + Send + Sync + 'static>;
 #[cfg(feature = "printing")]
 pub fn get_display_fmt_fn<T>() -> Option<DisplayFmtFn> {
     trait Detect {
@@ -73,7 +75,7 @@ pub fn get_display_fmt_fn<T>() -> Option<DisplayFmtFn> {
         T: Display + 'static,
     {
         fn fmt_fn() -> Option<DisplayFmtFn> {
-            Some(Rc::new(|value: &AnyValue, f: &mut Formatter<'_>| {
+            Some(Arc::new(|value: &AnyValue, f: &mut Formatter<'_>| {
                 if let Some(reference) = value.as_ref_safe::<T>() {
                     <Self as Display>::fmt(reference, f)
                 } else {

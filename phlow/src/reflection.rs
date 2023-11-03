@@ -180,6 +180,9 @@ impl AnyValue {
     }
 }
 
+unsafe impl Sync for AnyValue {}
+unsafe impl Send for AnyValue {}
+
 #[derive(Default)]
 pub struct AnyVec(Vec<AnyValue>);
 

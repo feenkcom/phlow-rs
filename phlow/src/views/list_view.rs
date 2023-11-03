@@ -1,17 +1,19 @@
 use std::any::Any;
 use std::fmt::{Debug, Display, Formatter};
+use std::sync::Arc;
 
 use crate::{PhlowObject, PhlowView, PhlowViewMethod, TypedPhlowObject};
 
 #[allow(unused)]
+#[derive(Clone)]
 pub struct PhlowListView {
     object: PhlowObject,
     defining_method: PhlowViewMethod,
     title: String,
     priority: usize,
-    items_computation: Box<dyn Fn(&PhlowObject) -> Vec<PhlowObject>>,
-    item_text_computation: Box<dyn Fn(&PhlowObject) -> String>,
-    send_computation: Box<dyn Fn(&PhlowObject) -> Option<PhlowObject>>,
+    items_computation: Arc<dyn Fn(&PhlowObject) -> Vec<PhlowObject>>,
+    item_text_computation: Arc<dyn Fn(&PhlowObject) -> String>,
+    send_computation: Arc<dyn Fn(&PhlowObject) -> Option<PhlowObject>>,
 }
 
 impl PhlowListView {
@@ -21,9 +23,9 @@ impl PhlowListView {
             defining_method,
             title: "".to_string(),
             priority: 10,
-            items_computation: Box::new(|_object| Default::default()),
-            item_text_computation: Box::new(|object| object.to_string()),
-            send_computation: Box::new(|object| Some(object.clone())),
+            items_computation: Arc::new(|_object| Default::default()),
+            item_text_computation: Arc::new(|object| object.to_string()),
+            send_computation: Arc::new(|object| Some(object.clone())),
         }
     }
 
@@ -41,7 +43,7 @@ impl PhlowListView {
         mut self,
         items_block: impl Fn(TypedPhlowObject<T>) -> Vec<PhlowObject> + 'static,
     ) -> Self {
-        self.items_computation = Box::new(move |each_object: &PhlowObject| {
+        self.items_computation = Arc::new(move |each_object: &PhlowObject| {
             // the type may differ when passing over ffi boundary...
             if let Some(each_reference) = each_object.value_ref::<T>() {
                 items_block(TypedPhlowObject::new(each_object, &each_reference))
@@ -57,7 +59,7 @@ impl PhlowListView {
         item_text_block: impl Fn(TypedPhlowObject<T>) -> String + 'static,
     ) -> Self {
         self.item_text_computation =
-            Box::new(move |each_object| match each_object.value_ref::<T>() {
+            Arc::new(move |each_object| match each_object.value_ref::<T>() {
                 Some(each_reference) => {
                     item_text_block(TypedPhlowObject::new(each_object, &each_reference))
                 }
@@ -70,7 +72,7 @@ impl PhlowListView {
         mut self,
         item_send_block: impl Fn(TypedPhlowObject<T>) -> PhlowObject + 'static,
     ) -> Self {
-        self.send_computation = Box::new(move |each_object| {
+        self.send_computation = Arc::new(move |each_object| {
             each_object.value_ref::<T>().map(|each_reference| {
                 item_send_block(TypedPhlowObject::new(each_object, &each_reference))
             })
@@ -144,5 +146,66 @@ impl PhlowView for PhlowListView {
 
     fn to_any(self: Box<Self>) -> Box<dyn Any> {
         self
+    }
+
+    #[cfg(feature = "view-specification")]
+    fn as_view_specification_builder(&self) -> &dyn crate::AsPhlowViewSpecification {
+        self
+    }
+}
+
+#[cfg(feature = "view-specification")]
+mod specification {
+    use serde::Serialize;
+
+    use crate::views::view_specification::PhlowViewSpecificationItemValue;
+    use crate::{
+        AsPhlowViewSpecification, PhlowViewSpecification, PhlowViewSpecificationDataTransport,
+        PhlowViewSpecificationListingItem,
+    };
+
+    use super::*;
+
+    #[derive(Debug, Clone, Serialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct PhlowListViewSpecification {
+        title: String,
+        priority: usize,
+        data_transport: PhlowViewSpecificationDataTransport,
+        method_selector: String,
+        #[serde(skip)]
+        phlow_view: PhlowListView,
+    }
+
+    #[typetag::serialize(name = "GtPhlowListViewSpecification")]
+    impl PhlowViewSpecification for PhlowListViewSpecification {
+        fn retrieve_items(&self) -> Vec<Box<dyn PhlowViewSpecificationListingItem>> {
+            self.phlow_view
+                .compute_items()
+                .into_iter()
+                .map(|each| {
+                    Box::new(PhlowViewSpecificationItemValue {
+                        phlow_object: each.clone(),
+                        item_text: self.phlow_view.compute_item_text(&each),
+                    }) as Box<dyn PhlowViewSpecificationListingItem>
+                })
+                .collect()
+        }
+
+        fn retrieve_sent_item(&self, item: &PhlowObject) -> PhlowObject {
+            self.phlow_view.compute_item_send(item)
+        }
+    }
+
+    impl AsPhlowViewSpecification for PhlowListView {
+        fn create_view_specification(&self) -> Option<Box<dyn PhlowViewSpecification>> {
+            Some(Box::new(PhlowListViewSpecification {
+                title: self.get_title().to_string(),
+                priority: self.get_priority(),
+                data_transport: PhlowViewSpecificationDataTransport::Lazy,
+                method_selector: self.get_defining_method().full_method_name.clone(),
+                phlow_view: self.clone(),
+            }))
+        }
     }
 }

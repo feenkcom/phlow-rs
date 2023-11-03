@@ -106,7 +106,7 @@ macro_rules! phlow_all {
     ($iter:expr) => {{
         $iter
             .into_iter()
-            .map(|each| phlow!(each))
+            .map(|each| phlow::phlow!(each))
             .collect::<Vec<phlow::PhlowObject>>()
     }};
 }

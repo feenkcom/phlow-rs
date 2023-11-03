@@ -1,7 +1,7 @@
 use std::any;
 use std::any::type_name;
 use std::fmt::{Debug, Formatter};
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::{
     get_debug_fmt_fn, get_display_fmt_fn, AnyValue, DebugFmtFn, DisplayFmtFn, Fmt, Phlow,
@@ -11,7 +11,7 @@ use crate::{
 #[derive(Clone)]
 #[repr(C)]
 pub struct PhlowExtension {
-    view_methods_fn: Rc<dyn Fn(&PhlowExtension) -> Vec<PhlowViewMethod>>,
+    view_methods_fn: Arc<dyn Fn(&PhlowExtension) -> Vec<PhlowViewMethod> + Send + Sync + 'static>,
     category: &'static str,
     target: &'static str,
 }
@@ -19,7 +19,7 @@ pub struct PhlowExtension {
 impl PhlowExtension {
     pub fn new<Category, T: Phlow<Category> + 'static>() -> Self {
         Self {
-            view_methods_fn: Rc::new(|extension| T::phlow_view_methods(extension)),
+            view_methods_fn: Arc::new(|extension| T::phlow_view_methods(extension)),
             category: any::type_name::<Category>(),
             target: any::type_name::<T>(),
         }
@@ -50,7 +50,7 @@ impl Debug for PhlowExtension {
 #[derive(Clone)]
 #[repr(C)]
 pub struct PhlowViewMethod {
-    pub method: Rc<dyn Fn(&PhlowObject, &PhlowViewMethod) -> Option<Box<dyn PhlowView>>>,
+    pub method: Arc<dyn Fn(&PhlowObject, &PhlowViewMethod) -> Option<Box<dyn PhlowView>>>,
     pub extension: PhlowExtension,
     pub method_name: String,
     pub full_method_name: String,

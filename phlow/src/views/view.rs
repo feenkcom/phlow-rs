@@ -24,6 +24,13 @@ pub trait PhlowView: Debug + Display + Any {
     }
     fn as_any(&self) -> &dyn Any;
     fn to_any(self: Box<Self>) -> Box<dyn Any>;
+    #[cfg(feature = "view-specification")]
+    fn as_view_specification_builder(&self) -> &dyn crate::AsPhlowViewSpecification;
+    #[cfg(feature = "view-specification")]
+    fn as_view_specification(&self) -> Option<Box<dyn crate::PhlowViewSpecification>> {
+        self.as_view_specification_builder()
+            .create_view_specification()
+    }
 }
 
 #[derive(Debug)]
@@ -81,6 +88,11 @@ impl PhlowView for PhlowProtoView {
 
     fn to_any(self: Box<Self>) -> Box<dyn Any> {
         todo!()
+    }
+
+    #[cfg(feature = "view-specification")]
+    fn as_view_specification_builder(&self) -> &dyn crate::AsPhlowViewSpecification {
+        self
     }
 }
 

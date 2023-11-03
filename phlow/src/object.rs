@@ -1,22 +1,28 @@
 use std::any::{type_name, Any, TypeId};
-use std::cell::{Ref, RefCell, RefMut};
 use std::ffi::c_void;
 use std::fmt::{Binary, Debug, Formatter, Octal, UpperHex};
 use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
+use std::sync::Arc;
+
+use parking_lot::lock_api::{MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLockReadGuard};
+use parking_lot::{RawRwLock, RwLock, RwLockWriteGuard};
 
 use crate::{AnyValue, PhlowExtension, PhlowView, PhlowViewMethod, PrintExtensions};
 
+pub type PhlowObjectId = i64;
+
 #[derive(Clone)]
-pub struct PhlowObject(Rc<PhlowObjectData>);
+pub struct PhlowObject(Arc<PhlowObjectData>);
 struct PhlowObjectData {
     // to make sure that when we browse a reference, it stays alive as long as the previous inspector is alive
     parent: Option<PhlowObject>,
     // when value is reference - the previous inspector must be initialized
-    value: RefCell<AnyValue>,
+    value: RwLock<AnyValue>,
     // meta description of the type with the necessary vtables
     phlow_type: PhlowType,
     generic_types: Vec<PhlowType>,
+    #[cfg(feature = "object-id")]
+    id: PhlowObjectId,
 }
 
 impl PhlowObject {
@@ -65,11 +71,15 @@ impl PhlowObject {
         generic_types: Vec<PhlowType>,
         parent: Option<PhlowObject>,
     ) -> Self {
-        Self(Rc::new(PhlowObjectData {
+        Self(Arc::new(PhlowObjectData {
             parent,
-            value: RefCell::new(value),
+            value: RwLock::new(value),
             phlow_type,
             generic_types,
+            #[cfg(feature = "object-id")]
+            id: unique_id::Generator::<i64>::next_id(
+                &unique_id::sequence::SequenceGenerator::default(),
+            ),
         }))
     }
 
@@ -89,48 +99,55 @@ impl PhlowObject {
         self.with_value(|value| self.0.phlow_type.value_to_string(value))
     }
 
+    #[cfg(feature = "object-id")]
+    pub fn object_id(&self) -> PhlowObjectId {
+        self.0.id
+    }
+
     /// Return true if phlow object contains a value - object or reference.
     /// Note, that even though has_value() may return true, it does not mean
     /// that the value can actually be taken, because it does not check
     /// the runtime type.
     pub fn has_value(&self) -> bool {
-        self.0.value.borrow().has_value()
+        self.0.value.read().has_value()
     }
 
     /// Take the ownership of the value leaving AnyValue::None in its place.
     /// The value can only be taken if phlow object owned it
     pub fn take_value<T: Any>(&self) -> Option<T> {
-        let existing = self.0.value.replace(AnyValue::None);
-        existing.take_value()
+        let mut writer = self.0.value.write();
+        let previous = std::mem::replace(&mut *writer, AnyValue::None);
+        previous.take_value()
     }
 
     /// Replace an existing value with the given object and returns the previous object if any.
     pub fn replace_value<T: Any>(&self, object: T) -> Option<T> {
-        let existing = self.0.value.replace(AnyValue::object(object));
-        existing.take_value()
+        let mut writer = self.0.value.write();
+        let previous = std::mem::replace(&mut *writer, AnyValue::object(object));
+        previous.take_value()
     }
 
     /// Attempts to clone the value
     pub fn clone_value<T: Any + Clone>(&self) -> Option<T> {
-        self.0.value.borrow().clone_value()
+        self.0.value.read().clone_value()
     }
 
     pub fn with_value<R>(&self, op: impl FnOnce(&AnyValue) -> R) -> R {
-        op(&self.0.value.borrow())
+        op(&self.0.value.read())
     }
 
-    pub fn value(&self) -> Ref<AnyValue> {
-        self.0.value.borrow()
+    pub fn value(&self) -> RwLockReadGuard<'_, RawRwLock, AnyValue> {
+        self.0.value.read()
     }
 
-    pub fn value_ref<T: Any>(&self) -> Option<Ref<T>> {
-        Ref::filter_map(self.value(), |value| value.as_ref_safe())
+    pub fn value_mut<T: Any>(&self) -> Option<MappedRwLockWriteGuard<'_, RawRwLock, T>> {
+        RwLockWriteGuard::try_map(self.0.value.write(), |value| value.as_mut_safe())
             .map(|reference| Some(reference))
             .unwrap_or(None)
     }
 
-    pub fn value_mut<T: Any>(&self) -> Option<RefMut<T>> {
-        RefMut::filter_map(self.0.value.borrow_mut(), |value| value.as_mut_safe())
+    pub fn value_ref<T: Any>(&self) -> Option<MappedRwLockReadGuard<'_, RawRwLock, T>> {
+        RwLockReadGuard::try_map(self.0.value.read(), |value| value.as_ref_safe())
             .map(|reference| Some(reference))
             .unwrap_or(None)
     }
