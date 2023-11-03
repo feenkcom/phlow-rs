@@ -21,7 +21,7 @@ impl<T: Debug> Generic<T> {
 
 define_extensions!(ExampleExtensions);
 
-#[phlow::extensions(ExampleExtensions, "Generic<T>")]
+#[phlow::extensions(ExampleExtensions, Generic<T>)]
 impl<T: Debug + 'static> GenericExtensions<T> {
     #[phlow::view]
     pub fn type_for(_this: &Generic<T>, view: impl PhlowView) -> impl PhlowView {
