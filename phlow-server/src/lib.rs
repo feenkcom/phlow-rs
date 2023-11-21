@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::convert::Infallible;
+use std::net::TcpListener;
 use std::sync::Arc;
 use std::thread;
 
@@ -211,6 +212,17 @@ macro_rules! delete_path {
     });
 }
 
+pub fn serve(object: PhlowObject) -> thread::JoinHandle<()> {
+    let server = PhlowServer::new(object);
+    let port = get_available_port();
+    if let Some(port) = port {
+        let handle =  spawn(server, port);
+        println!("Phlow server running at 127.0.0.1:{}.", port);
+        return handle;
+    }
+    panic!("Failed to find a suitable port")
+}
+
 pub fn spawn(server: PhlowServer, port: u16) -> thread::JoinHandle<()> {
     let session = get_path!(server, "session")
         .and(with_phlow_server(server.clone()))
@@ -273,4 +285,17 @@ pub fn spawn(server: PhlowServer, port: u16) -> thread::JoinHandle<()> {
         });
         ()
     })
+}
+
+
+fn get_available_port() -> Option<u16> {
+    (51507 .. 65535)
+        .find(|port| port_is_available(*port))
+}
+
+fn port_is_available(port: u16) -> bool {
+    match TcpListener::bind(("127.0.0.1", port)) {
+        Ok(_) => true,
+        Err(_) => false,
+    }
 }
