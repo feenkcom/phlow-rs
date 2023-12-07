@@ -58,13 +58,14 @@ impl PhlowListView {
         mut self,
         item_text_block: impl Fn(TypedPhlowObject<T>) -> String + 'static,
     ) -> Self {
-        self.item_text_computation =
-            Arc::new(move |each_object| match each_object.value_ref::<T>() {
+        self.item_text_computation = Arc::new(move |each_object| {
+            match each_object.value_ref::<T>() {
                 Some(each_reference) => {
                     item_text_block(TypedPhlowObject::new(each_object, &each_reference))
                 }
                 None => "Error coercing item type".to_string(),
-            });
+            }
+        });
         self
     }
 

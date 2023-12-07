@@ -107,14 +107,15 @@ impl PhlowColumnedListView {
         mut self,
         items_block: impl Fn(TypedPhlowObject<T>) -> Vec<PhlowObject> + 'static,
     ) -> Self {
-        self.items_computation = Arc::new(move |object: &PhlowObject| {
-            // the type may differ when passing over ffi boundary...
-            if let Some(reference) = object.value_ref::<T>() {
-                items_block(TypedPhlowObject::new(object, &reference))
-            } else {
-                vec![]
-            }
-        });
+        self.items_computation =
+            Arc::new(move |object: &PhlowObject| {
+                // the type may differ when passing over ffi boundary...
+                if let Some(reference) = object.value_ref::<T>() {
+                    items_block(TypedPhlowObject::new(object, &reference))
+                } else {
+                    vec![]
+                }
+            });
         self
     }
 
