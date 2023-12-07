@@ -15,7 +15,9 @@ impl ServerExtensions {
                     ("ObjectId", phlow!(server.id())),
                 ])
             })
-            .column_item::<(&str, phlow::PhlowObject)>("Property", |each| phlow!(each.0.to_string()))
+            .column_item::<(&str, phlow::PhlowObject)>("Property", |each| {
+                phlow!(each.0.to_string())
+            })
             .column_item::<(&str, phlow::PhlowObject)>("Value", |each| phlow!(each.1.clone()))
             .send::<(&str, phlow::PhlowObject)>(|each| each.1.clone())
     }

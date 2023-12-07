@@ -77,13 +77,14 @@ impl PhlowObjectDescription {
 
 impl PhlowServer {
     pub fn new(root_object: PhlowObject) -> Self {
-        let server = Self(Arc::new(RwLock::new(PhlowServerData {
-            root_object: root_object.clone(),
-            objects: Default::default(),
-            session: Uuid::new_v4(),
-            routes: vec![],
-            server_object_id: 0,
-        })));
+        let server =
+            Self(Arc::new(RwLock::new(PhlowServerData {
+                root_object: root_object.clone(),
+                objects: Default::default(),
+                session: Uuid::new_v4(),
+                routes: vec![],
+                server_object_id: 0,
+            })));
 
         let server_phlow_object = phlow!(server.clone());
         server.0.write().server_object_id = server_phlow_object.object_id();
@@ -216,7 +217,7 @@ pub fn serve(object: PhlowObject) -> thread::JoinHandle<()> {
     let server = PhlowServer::new(object);
     let port = get_available_port();
     if let Some(port) = port {
-        let handle =  spawn(server, port);
+        let handle = spawn(server, port);
         println!("Phlow server running at 127.0.0.1:{}.", port);
         return handle;
     }
@@ -287,10 +288,8 @@ pub fn spawn(server: PhlowServer, port: u16) -> thread::JoinHandle<()> {
     })
 }
 
-
 fn get_available_port() -> Option<u16> {
-    (51507 .. 65535)
-        .find(|port| port_is_available(*port))
+    (51507..65535).find(|port| port_is_available(*port))
 }
 
 fn port_is_available(port: u16) -> bool {

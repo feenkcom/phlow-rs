@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use uuid::Uuid;
-use warp::{Rejection, reply, Reply};
+use warp::{reply, Rejection, Reply};
 
 use phlow::{PhlowObject, PhlowObjectId, PhlowViewSpecification};
 
@@ -63,8 +63,9 @@ pub async fn object_view_items(
     server: PhlowServer,
 ) -> Result<impl Reply, Rejection> {
     let spec = find_view_specification_for_object_id(id, view_selector.as_str(), &server);
-    let items: Option<Vec<PhlowViewSpecificationDataNode>> =
-        spec.map(|spec| spec.retrieve_items()).map(|items| {
+    let items: Option<Vec<PhlowViewSpecificationDataNode>> = spec
+        .map(|spec| spec.retrieve_items())
+        .map(|items| {
             items
                 .into_iter()
                 .map(|item| {
