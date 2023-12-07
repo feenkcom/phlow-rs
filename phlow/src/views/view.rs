@@ -2,7 +2,10 @@ use std::any::Any;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
-use crate::{PhlowColumnedListView, PhlowListView, PhlowObject, PhlowTextView, PhlowViewMethod};
+use crate::{
+    PhlowBitmapView, PhlowColumnedListView, PhlowListView, PhlowObject, PhlowTextView,
+    PhlowViewMethod,
+};
 
 pub trait PhlowView: Debug + Display + Any {
     fn get_title(&self) -> &str;
@@ -21,6 +24,9 @@ pub trait PhlowView: Debug + Display + Any {
     }
     fn text(&self) -> PhlowTextView {
         PhlowTextView::new(self.object().clone(), self.get_defining_method().clone())
+    }
+    fn bitmap(&self) -> PhlowBitmapView {
+        PhlowBitmapView::new(self.object().clone(), self.get_defining_method().clone())
     }
     fn as_any(&self) -> &dyn Any;
     fn to_any(self: Box<Self>) -> Box<dyn Any>;

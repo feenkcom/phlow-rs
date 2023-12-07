@@ -232,7 +232,7 @@ impl AsPhlowObject for &PhlowObject {
     }
 
     fn try_into_phlow_object(&self) -> Option<PhlowObject> {
-        Some(self.clone().clone())
+        (*self).try_into_phlow_object()
     }
 }
 
