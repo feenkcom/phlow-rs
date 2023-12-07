@@ -47,9 +47,9 @@ pub extern "C" fn phlow_object_to_string(
     string: *mut ValueBox<StringBox>,
 ) {
     phlow_object
-        .with_ref(|phlow_object| {
-            string.with_mut_ok(|string| string.set_string(phlow_object.to_string()))
-        })
+        .with_ref(
+            |phlow_object| string.with_mut_ok(|string| string.set_string(phlow_object.to_string()))
+        )
         .log();
 }
 
@@ -60,9 +60,9 @@ pub extern "C" fn phlow_object_get_value_type(
 ) {
     phlow_object
         .with_ref(|phlow_object| {
-            value_type.with_mut_ok(|value_type| {
-                value_type.set_string(phlow_object.value_type_name().to_string())
-            })
+            value_type.with_mut_ok(
+                |value_type| value_type.set_string(phlow_object.value_type_name().to_string())
+            )
         })
         .log();
 }

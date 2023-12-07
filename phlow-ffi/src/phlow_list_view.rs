@@ -25,13 +25,13 @@ pub extern "C" fn phlow_list_view_compute_item_text_at(
         items.with_ref(|items| {
             items
                 .get(index)
-                .ok_or_else(|| {
-                    BoxerError::AnyError(format!("Item at {} does not exist", index).into())
-                })
+                .ok_or_else(
+                    || BoxerError::AnyError(format!("Item at {} does not exist", index).into())
+                )
                 .map(|item| {
-                    item_text.with_mut_ok(|item_text| {
-                        item_text.set_string(phlow_view.compute_item_text(item))
-                    })
+                    item_text.with_mut_ok(
+                        |item_text| item_text.set_string(phlow_view.compute_item_text(item))
+                    )
                 })
         })
     })
@@ -48,9 +48,9 @@ pub extern "C" fn phlow_list_view_compute_item_send_at(
         items.with_ref(|items| {
             items
                 .get(index)
-                .ok_or_else(|| {
-                    BoxerError::AnyError(format!("Item at {} does not exist", index).into())
-                })
+                .ok_or_else(
+                    || BoxerError::AnyError(format!("Item at {} does not exist", index).into())
+                )
                 .map(|item| ValueBox::new(phlow_view.compute_item_send(item)))
         })
     })

@@ -22,9 +22,9 @@ pub extern "C" fn phlow_view_get_type(
 ) {
     phlow_view
         .with_ref(|phlow_view| {
-            view_type.with_mut_ok(|view_type| {
-                view_type.set_string(phlow_view.get_view_type().to_string())
-            })
+            view_type.with_mut_ok(
+                |view_type| view_type.set_string(phlow_view.get_view_type().to_string())
+            )
         })
         .log();
 }
