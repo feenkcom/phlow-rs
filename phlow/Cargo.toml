@@ -1,6 +1,6 @@
 [package]
 name = "phlow"
-version = "1.6.0"
+version = "1.7.0"
 edition = "2021"
 authors = ["feenk gmbh <contact@feenk.com>"]
 repository = "https://github.com/feenkcom/phlow-rs/tree/main/phlow"
@@ -17,6 +17,7 @@ serde_repr = { version = "0.1", optional = true }
 erased-serde = { version = "0.3", optional = true }
 typetag = { version = "0.2", optional = true }
 unique_id = { version = "0.1", optional = true }
+base64 = { version = "0.21", optional = true }
 
 [dev-dependencies]
 phlow-derive = { version = "1", path = "../phlow-derive" }
@@ -26,4 +27,4 @@ default = [ "printing", "phlow-derive" ]
 phlow-derive = ["dep:phlow-derive"]
 printing = []
 object-id = ["dep:unique_id"]
-view-specification = ["dep:serde", "dep:serde_repr", "dep:erased-serde", "dep:typetag"]
+view-specification = ["dep:serde", "dep:serde_repr", "dep:erased-serde", "dep:typetag", "dep:base64"]

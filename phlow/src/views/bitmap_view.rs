@@ -194,7 +194,35 @@ mod specification {
         PhlowViewSpecificationListingItem,
     };
 
+    use base64::{
+        alphabet,
+        engine::{self, general_purpose},
+        Engine as _,
+    };
+
     use super::*;
+
+    #[derive(Debug, Default, Clone)]
+    #[cfg_attr(feature = "view-specification", derive(serde::Serialize))]
+    pub struct PhlowBitmapSpecification {
+        pixels: String,
+        width: i32,
+        height: i32,
+        stride: i32,
+        format: PixelFormat,
+    }
+
+    impl PhlowBitmapSpecification {
+        pub fn new(bitmap: PhlowBitmap) -> Self {
+            Self {
+                pixels: (general_purpose::STANDARD.encode(bitmap.pixels())),
+                width: bitmap.width,
+                height: bitmap.height,
+                stride: bitmap.stride,
+                format: Default::default(),
+            }
+        }
+    }
 
     #[derive(Debug, Clone, Serialize)]
     #[serde(rename_all = "camelCase")]
@@ -202,7 +230,7 @@ mod specification {
         title: String,
         priority: usize,
         data_transport: PhlowViewSpecificationDataTransport,
-        bitmap: PhlowBitmap,
+        bitmap: PhlowBitmapSpecification,
         method_selector: String,
     }
 
@@ -223,7 +251,7 @@ mod specification {
                 title: self.get_title().to_string(),
                 priority: self.get_priority(),
                 data_transport: PhlowViewSpecificationDataTransport::Included,
-                bitmap: self.compute_bitmap(),
+                bitmap: PhlowBitmapSpecification::new(self.compute_bitmap()),
                 method_selector: self.get_defining_method().full_method_name.clone(),
             }))
         }
