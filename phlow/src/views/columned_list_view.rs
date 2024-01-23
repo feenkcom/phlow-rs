@@ -2,7 +2,7 @@ use std::any::Any;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
-use crate::{PhlowObject, PhlowView, PhlowViewMethod, TypedPhlowObject};
+use crate::{PhlowObject, PhlowView, PhlowViewMethod, TypedPhlowObject, TypedPhlowObjectMut};
 
 #[derive(Clone)]
 pub struct PhlowColumn {
@@ -116,6 +116,21 @@ impl PhlowColumnedListView {
                     vec![]
                 }
             });
+        self
+    }
+
+    pub fn items_mut<T: 'static>(
+        mut self,
+        items_block: impl Fn(TypedPhlowObjectMut<T>) -> Vec<PhlowObject> + 'static,
+    ) -> Self {
+        self.items_computation = Arc::new(move |object: &PhlowObject| {
+            // the type may differ when passing over ffi boundary...
+            if let Some(mut reference) = object.value_mut::<T>() {
+                items_block(TypedPhlowObjectMut::new(object, &mut reference))
+            } else {
+                vec![]
+            }
+        });
         self
     }
 
