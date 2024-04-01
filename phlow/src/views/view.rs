@@ -46,9 +46,6 @@ pub trait PhlowView: Debug + Display + Any {
 }
 
 #[derive(Debug)]
-pub struct PhlowViewContext {}
-
-#[derive(Debug)]
 pub struct PhlowProtoView {
     object: PhlowObject,
     defining_method: PhlowViewMethod,

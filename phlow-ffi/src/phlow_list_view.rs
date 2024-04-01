@@ -9,7 +9,7 @@ pub extern "C" fn phlow_list_view_compute_items(
     phlow_view: *mut ValueBox<Box<dyn PhlowView>>,
 ) -> *mut ValueBox<Vec<PhlowObject>> {
     with_view(phlow_view, |phlow_view: &PhlowListView| {
-        Ok(ValueBox::new(phlow_view.compute_items()))
+        Ok(ValueBox::new(phlow_view.compute_items_sync()))
     })
     .into_raw()
 }
@@ -30,7 +30,7 @@ pub extern "C" fn phlow_list_view_compute_item_text_at(
                 })
                 .map(|item| {
                     item_text.with_mut_ok(|item_text| {
-                        item_text.set_string(phlow_view.compute_item_text(item))
+                        item_text.set_string(phlow_view.compute_item_text_sync(item))
                     })
                 })
         })
@@ -51,7 +51,14 @@ pub extern "C" fn phlow_list_view_compute_item_send_at(
                 .ok_or_else(|| {
                     BoxerError::AnyError(format!("Item at {} does not exist", index).into())
                 })
-                .map(|item| ValueBox::new(phlow_view.compute_item_send(item)))
+                .and_then(|item| {
+                    phlow_view.compute_item_to_send_sync(item).ok_or_else(|| {
+                        BoxerError::AnyError(
+                            format!("Couldn't determine an item to send at {}", index).into(),
+                        )
+                    })
+                })
+                .map(|item| ValueBox::new(item))
         })
     })
     .into_raw()

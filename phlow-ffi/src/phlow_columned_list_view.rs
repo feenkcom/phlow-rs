@@ -102,7 +102,14 @@ pub extern "C" fn phlow_columned_list_view_compute_item_send_at(
                 .ok_or_else(|| {
                     BoxerError::AnyError(format!("Item at {} does not exist", index).into())
                 })
-                .map(|item| ValueBox::new(phlow_view.compute_item_send(item)))
+                .and_then(|item| {
+                    phlow_view.compute_item_send(item).ok_or_else(|| {
+                        BoxerError::AnyError(
+                            format!("Couldn't determine an item to send at {}", index).into(),
+                        )
+                    })
+                })
+                .map(|item| ValueBox::new(item))
         })
     })
     .into_raw()
