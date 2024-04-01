@@ -36,34 +36,41 @@ pub enum PhlowViewSpecificationListingType {
     Text,
 }
 
-pub trait PhlowViewSpecificationListingItem: erased_serde::Serialize + Send + Debug {
+#[typetag::serialize(tag = "valueTypeName")]
+pub trait PhlowViewSpecificationListingItem: Send + Debug {
     fn phlow_object(&self) -> &PhlowObject;
 }
 
-serialize_trait_object!(PhlowViewSpecificationListingItem);
-
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PhlowViewSpecificationItemValue {
+pub struct PhlowViewSpecificationTextualItemValue {
     #[serde(skip)]
     pub phlow_object: PhlowObject,
     pub item_text: String,
 }
 
-impl PhlowViewSpecificationListingItem for PhlowViewSpecificationItemValue {
+#[typetag::serialize(name = "textualValue")]
+impl PhlowViewSpecificationListingItem for PhlowViewSpecificationTextualItemValue {
     fn phlow_object(&self) -> &PhlowObject {
         &self.phlow_object
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PhlowViewSpecificationRowValue {
     #[serde(skip)]
     pub phlow_object: PhlowObject,
-    pub column_values: Vec<PhlowViewSpecificationItemValue>,
+    pub column_values: Vec<Box<dyn PhlowViewSpecificationListingItem>>,
 }
 
+impl PhlowViewSpecificationRowValue {
+    fn phlow_object(&self) -> &PhlowObject {
+        &self.phlow_object
+    }
+}
+
+#[typetag::serialize(name = "rowValue")]
 impl PhlowViewSpecificationListingItem for PhlowViewSpecificationRowValue {
     fn phlow_object(&self) -> &PhlowObject {
         &self.phlow_object

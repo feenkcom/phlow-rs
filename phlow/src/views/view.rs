@@ -1,15 +1,16 @@
-use futures_util::FutureExt;
 use std::any::Any;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
-use std::future::ready;
+use std::future::{ready, Future};
 use std::pin::Pin;
 use std::sync::Arc;
 
+use futures_util::FutureExt;
+
 use crate::{
-    AsyncComputation, AsyncComputationFuture, Phlow, PhlowBitmapView, PhlowColumnedListView,
-    PhlowListView, PhlowObject, PhlowTextView, PhlowViewMethod, SyncComputation,
-    SyncMutComputation, TypedPhlowObject, TypedPhlowObjectMut,
+    AsyncComputation, PhlowBitmapView, PhlowColumnedListView, PhlowListView, PhlowObject,
+    PhlowTextView, PhlowViewMethod, SyncComputation, SyncMutComputation, TypedPhlowObject,
+    TypedPhlowObjectMut,
 };
 
 pub trait PhlowView: Debug + Display + Any {
@@ -129,10 +130,7 @@ pub enum Computation<Return> {
     Sync(Arc<dyn Fn(&PhlowObject) -> Option<Return> + Send + Sync>),
     Async(
         Arc<
-            dyn Fn(
-                    &PhlowObject,
-                )
-                    -> Option<Pin<Box<dyn AsyncComputationFuture<Return, Output = Return>>>>
+            dyn Fn(&PhlowObject) -> Option<Pin<Box<dyn Future<Output = Return> + Send>>>
                 + Send
                 + Sync,
         >,
@@ -155,13 +153,11 @@ impl<Return: Send + Sync + 'static> Computation<Return> {
         }))
     }
 
-    pub fn new_async<T: 'static, F: AsyncComputationFuture<Return>>(
-        items_block: impl AsyncComputation<T, Return, F>,
-    ) -> Self {
+    pub fn new_async<T: 'static>(items_block: impl AsyncComputation<T, Return>) -> Self {
         Self::Async(Arc::new(move |object: &PhlowObject| {
             object.value_ref::<T>().map(|reference| {
-                let value = Box::pin(items_block(TypedPhlowObject::new(object, &reference)));
-                value as Pin<Box<(dyn AsyncComputationFuture<Return, Output = Return> + 'static)>>
+                let value = items_block(TypedPhlowObject::new(object, &reference));
+                value
             })
         }))
     }
@@ -233,6 +229,7 @@ impl Default for Computation<PhlowObject> {
 
 pub mod types {
     use std::future::Future;
+    use std::pin::Pin;
 
     use crate::{TypedPhlowObject, TypedPhlowObjectMut};
 
@@ -249,14 +246,23 @@ pub mod types {
     {
     }
 
-    pub trait AsyncComputationFuture<T>: Future<Output = T> + Send + Sync + 'static {}
+    pub trait AsyncComputationFuture<T>: Future<Output = T> + Send {}
 
     impl<T, O: Future<Output = T> + Send + Sync + 'static> AsyncComputationFuture<T> for O {}
 
-    pub trait AsyncComputation<T, R, F>:
-        Fn(TypedPhlowObject<T>) -> F + Send + Sync + 'static
-    where
-        F: AsyncComputationFuture<R>,
+    pub trait AsyncComputation<T, R>:
+        Fn(TypedPhlowObject<T>) -> Pin<Box<dyn Future<Output = R> + Send>> + Send + Sync + 'static
+    {
+    }
+
+    impl<
+            T,
+            R,
+            O: Fn(TypedPhlowObject<T>) -> Pin<Box<dyn Future<Output = R> + Send>>
+                + Send
+                + Sync
+                + 'static,
+        > AsyncComputation<T, R> for O
     {
     }
 }

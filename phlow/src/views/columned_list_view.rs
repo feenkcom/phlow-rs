@@ -1,11 +1,9 @@
 use std::any::Any;
 use std::fmt::{Debug, Display, Formatter};
-use std::sync::Arc;
 
 use crate::{
-    AsyncComputation, AsyncComputationFuture, ItemComputation, ItemsComputation, PhlowObject,
-    PhlowView, PhlowViewMethod, SendComputation, SyncComputation, SyncMutComputation,
-    TextComputation, TypedPhlowObject, TypedPhlowObjectMut,
+    AsyncComputation, ItemComputation, ItemsComputation, PhlowObject, PhlowView, PhlowViewMethod,
+    SendComputation, SyncComputation, SyncMutComputation, TextComputation,
 };
 
 #[derive(Clone)]
@@ -110,9 +108,9 @@ impl PhlowColumnedListView {
         self
     }
 
-    pub fn async_items<T: 'static, F: AsyncComputationFuture<Vec<PhlowObject>>>(
+    pub fn async_items<T: 'static>(
         mut self,
-        items_block: impl AsyncComputation<T, Vec<PhlowObject>, F>,
+        items_block: impl AsyncComputation<T, Vec<PhlowObject>>,
     ) -> Self {
         self.items_computation = ItemsComputation::new_async(items_block);
         self
@@ -253,16 +251,17 @@ impl PhlowView for PhlowColumnedListView {
 
 #[cfg(feature = "view-specification")]
 mod specification {
-    use super::*;
+    use serde::Serialize;
 
     use crate::views::view_specification::{
-        PhlowViewSpecificationItemValue, PhlowViewSpecificationRowValue,
+        PhlowViewSpecificationRowValue, PhlowViewSpecificationTextualItemValue,
     };
     use crate::{
         AsPhlowViewSpecification, PhlowViewSpecification, PhlowViewSpecificationDataTransport,
         PhlowViewSpecificationListingItem, PhlowViewSpecificationListingType,
     };
-    use serde::Serialize;
+
+    use super::*;
 
     #[derive(Debug, Clone, Serialize)]
     #[serde(rename_all = "camelCase")]
@@ -306,9 +305,12 @@ mod specification {
                                     .map(|cell_object| column.compute_cell_text(&cell_object))
                                     .unwrap_or_else(|| "".to_string())
                             })
-                            .map(|cell_text| PhlowViewSpecificationItemValue {
+                            .map(|cell_text| PhlowViewSpecificationTextualItemValue {
                                 phlow_object: each.clone(),
                                 item_text: cell_text,
+                            })
+                            .map(|value| {
+                                Box::new(value) as Box<dyn PhlowViewSpecificationListingItem>
                             })
                             .collect(),
                     }) as Box<dyn PhlowViewSpecificationListingItem>

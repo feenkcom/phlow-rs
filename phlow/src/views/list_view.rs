@@ -4,8 +4,8 @@ use std::fmt::{Debug, Display, Formatter};
 use futures_util::{stream, FutureExt, Stream, StreamExt};
 
 use crate::{
-    AsyncComputation, AsyncComputationFuture, ItemsComputation, PhlowObject, PhlowView,
-    PhlowViewMethod, SendComputation, SyncComputation, SyncMutComputation, TextComputation,
+    AsyncComputation, ItemsComputation, PhlowObject, PhlowView, PhlowViewMethod, SendComputation,
+    SyncComputation, SyncMutComputation, TextComputation,
 };
 
 #[allow(unused)]
@@ -59,10 +59,10 @@ impl PhlowListView {
         self
     }
 
-    pub fn async_items<T: 'static, F>(
+    pub fn async_items<T: 'static>(
         mut self,
-        items_block: impl AsyncComputation<T, Vec<PhlowObject>, F>,
-    ) -> Self where F: AsyncComputationFuture<Vec<PhlowObject>> {
+        items_block: impl AsyncComputation<T, Vec<PhlowObject>>,
+    ) -> Self {
         self.items_computation = ItemsComputation::new_async(items_block);
         self
     }
@@ -193,7 +193,7 @@ const _: () = {
 mod specification {
     use serde::Serialize;
 
-    use crate::views::view_specification::PhlowViewSpecificationItemValue;
+    use crate::views::view_specification::PhlowViewSpecificationTextualItemValue;
     use crate::{
         AsPhlowViewSpecification, PhlowViewSpecification, PhlowViewSpecificationDataTransport,
         PhlowViewSpecificationListingItem,
@@ -219,7 +219,7 @@ mod specification {
             self.phlow_view
                 .compute_items()
                 .then(|each| async move {
-                    Box::new(PhlowViewSpecificationItemValue {
+                    Box::new(PhlowViewSpecificationTextualItemValue {
                         phlow_object: each.clone(),
                         item_text: self.phlow_view.compute_item_text(&each).await,
                     }) as Box<dyn PhlowViewSpecificationListingItem>
