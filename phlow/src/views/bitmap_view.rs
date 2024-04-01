@@ -235,13 +235,14 @@ mod specification {
     }
 
     #[typetag::serialize(name = "GtPhlowBitmapViewSpecification")]
+    #[async_trait::async_trait]
     impl PhlowViewSpecification for PhlowBitmapViewSpecification {
-        fn retrieve_items(&self) -> Vec<Box<dyn PhlowViewSpecificationListingItem>> {
+        async fn retrieve_items(&self) -> Vec<Box<dyn PhlowViewSpecificationListingItem>> {
             vec![]
         }
 
-        fn retrieve_sent_item(&self, item: &PhlowObject) -> PhlowObject {
-            item.clone()
+        async fn retrieve_sent_item(&self, item: &PhlowObject) -> Option<PhlowObject> {
+            Some(item.clone())
         }
     }
 

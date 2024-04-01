@@ -1,14 +1,16 @@
+use std::fmt::Debug;
+
 use erased_serde::serialize_trait_object;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use std::fmt::Debug;
 
 use crate::{PhlowObject, PhlowView};
 
 #[typetag::serialize(tag = "viewName")]
-pub trait PhlowViewSpecification {
-    fn retrieve_items(&self) -> Vec<Box<dyn PhlowViewSpecificationListingItem>>;
-    fn retrieve_sent_item(&self, item: &PhlowObject) -> PhlowObject;
+#[async_trait::async_trait]
+pub trait PhlowViewSpecification: Send {
+    async fn retrieve_items(&self) -> Vec<Box<dyn PhlowViewSpecificationListingItem>>;
+    async fn retrieve_sent_item(&self, item: &PhlowObject) -> Option<PhlowObject>;
 }
 
 pub trait AsPhlowViewSpecification: PhlowView {
@@ -34,7 +36,7 @@ pub enum PhlowViewSpecificationListingType {
     Text,
 }
 
-pub trait PhlowViewSpecificationListingItem: erased_serde::Serialize + Debug {
+pub trait PhlowViewSpecificationListingItem: erased_serde::Serialize + Send + Debug {
     fn phlow_object(&self) -> &PhlowObject;
 }
 

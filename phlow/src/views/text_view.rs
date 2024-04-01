@@ -1,7 +1,10 @@
 use std::any::Any;
 use std::fmt::{Debug, Display, Formatter};
+use std::sync::Arc;
 
-use crate::{PhlowObject, PhlowView, PhlowViewMethod, TypedPhlowObject, TypedPhlowObjectMut};
+use crate::{
+    PhlowObject, PhlowView, PhlowViewMethod, SyncComputation, SyncMutComputation, TextComputation,
+};
 
 #[allow(unused)]
 pub struct PhlowTextView {
@@ -9,7 +12,7 @@ pub struct PhlowTextView {
     defining_method: PhlowViewMethod,
     title: String,
     priority: usize,
-    text_computation: Box<dyn Fn(&PhlowObject) -> String>,
+    text_computation: TextComputation,
 }
 
 impl PhlowTextView {
@@ -19,7 +22,7 @@ impl PhlowTextView {
             defining_method,
             title: "".to_string(),
             priority: 10,
-            text_computation: Box::new(|object| object.to_string()),
+            text_computation: Default::default(),
         }
     }
 
@@ -33,32 +36,20 @@ impl PhlowTextView {
         self
     }
 
-    pub fn text<T: 'static>(
-        mut self,
-        text_block: impl Fn(TypedPhlowObject<T>) -> String + 'static,
-    ) -> Self {
-        self.text_computation = Box::new(move |each_object| match each_object.value_ref::<T>() {
-            Some(each_reference) => text_block(TypedPhlowObject::new(each_object, &each_reference)),
-            None => "Error coercing item type".to_string(),
-        });
+    pub fn text<T: 'static>(mut self, text_block: impl SyncComputation<T, String>) -> Self {
+        self.text_computation = TextComputation::new_sync(text_block);
         self
     }
 
-    pub fn text_mut<T: 'static>(
-        mut self,
-        text_block: impl Fn(TypedPhlowObjectMut<T>) -> String + 'static,
-    ) -> Self {
-        self.text_computation = Box::new(move |each_object| match each_object.value_mut::<T>() {
-            Some(mut each_reference) => {
-                text_block(TypedPhlowObjectMut::new(each_object, &mut each_reference))
-            }
-            None => "Error coercing item type".to_string(),
-        });
+    pub fn text_mut<T: 'static>(mut self, text_block: impl SyncMutComputation<T, String>) -> Self {
+        self.text_computation = TextComputation::new_sync_mut(text_block);
         self
     }
 
     pub fn compute_text(&self) -> String {
-        (self.text_computation)(&self.object)
+        self.text_computation
+            .value_block_on(&self.object)
+            .unwrap_or_else(|| "Error coercing item type".to_string())
     }
 }
 
@@ -142,13 +133,14 @@ mod specification {
     }
 
     #[typetag::serialize(name = "GtPhlowTextEditorViewSpecification")]
+    #[async_trait::async_trait]
     impl PhlowViewSpecification for PhlowTextViewSpecification {
-        fn retrieve_items(&self) -> Vec<Box<dyn PhlowViewSpecificationListingItem>> {
+        async fn retrieve_items(&self) -> Vec<Box<dyn PhlowViewSpecificationListingItem>> {
             vec![]
         }
 
-        fn retrieve_sent_item(&self, item: &PhlowObject) -> PhlowObject {
-            item.clone()
+        async fn retrieve_sent_item(&self, item: &PhlowObject) -> Option<PhlowObject> {
+            Some(item.clone())
         }
     }
 

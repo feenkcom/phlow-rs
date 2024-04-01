@@ -50,7 +50,8 @@ impl Debug for PhlowExtension {
 #[derive(Clone)]
 #[repr(C)]
 pub struct PhlowViewMethod {
-    pub method: Arc<dyn Fn(&PhlowObject, &PhlowViewMethod) -> Option<Box<dyn PhlowView>>>,
+    pub method:
+        Arc<dyn Fn(&PhlowObject, &PhlowViewMethod) -> Option<Box<dyn PhlowView>> + Send + Sync>,
     pub extension: PhlowExtension,
     pub method_name: String,
     pub full_method_name: String,

@@ -120,7 +120,7 @@ macro_rules! define_extensions {
 
 #[macro_export]
 macro_rules! import_extensions {
-    ($($es:ident),*) => {
+    ($($es:path),*) => {
         pub(crate) fn phlow_extensions_of_val<T: 'static>(_value: &T) -> Vec<phlow::PhlowExtension> {
             phlow_extensions::<T>()
         }

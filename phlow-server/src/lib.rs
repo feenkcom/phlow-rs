@@ -77,14 +77,13 @@ impl PhlowObjectDescription {
 
 impl PhlowServer {
     pub fn new(root_object: PhlowObject) -> Self {
-        let server =
-            Self(Arc::new(RwLock::new(PhlowServerData {
-                root_object: root_object.clone(),
-                objects: Default::default(),
-                session: Uuid::new_v4(),
-                routes: vec![],
-                server_object_id: 0,
-            })));
+        let server = Self(Arc::new(RwLock::new(PhlowServerData {
+            root_object: root_object.clone(),
+            objects: Default::default(),
+            session: Uuid::new_v4(),
+            routes: vec![],
+            server_object_id: 0,
+        })));
 
         let server_phlow_object = phlow!(server.clone());
         server.0.write().server_object_id = server_phlow_object.object_id();

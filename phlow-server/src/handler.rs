@@ -5,7 +5,7 @@ use warp::{reply, Rejection, Reply};
 
 use phlow::{PhlowObject, PhlowObjectId, PhlowViewSpecification};
 
-use crate::{PhlowServer, PhlowViewSpecificationDataNode};
+use crate::{PhlowObjectDescription, PhlowServer, PhlowViewSpecificationDataNode};
 
 pub async fn session(server: PhlowServer) -> Result<impl Reply, Rejection> {
     Ok(reply::json(&server.session().to_string()))
@@ -63,23 +63,24 @@ pub async fn object_view_items(
     server: PhlowServer,
 ) -> Result<impl Reply, Rejection> {
     let spec = find_view_specification_for_object_id(id, view_selector.as_str(), &server);
-    let items: Option<Vec<PhlowViewSpecificationDataNode>> = spec
-        .map(|spec| spec.retrieve_items())
-        .map(|items| {
-            items
-                .into_iter()
-                .map(|item| {
-                    let object = item.phlow_object().clone();
-                    PhlowViewSpecificationDataNode {
-                        phlow_object: server.register_object(object.clone()),
-                        node_id: object.object_id(),
-                        node_value: item,
-                    }
-                })
-                .collect()
-        });
+    if let Some(spec) = spec {
+        let items: Vec<PhlowViewSpecificationDataNode> = spec
+            .retrieve_items()
+            .await
+            .into_iter()
+            .map(|item| {
+                let object = item.phlow_object().clone();
+                PhlowViewSpecificationDataNode {
+                    phlow_object: server.register_object(object.clone()),
+                    node_id: object.object_id(),
+                    node_value: item,
+                }
+            })
+            .collect();
 
-    Ok(reply::json(&items))
+        return Ok(reply::json(&items));
+    }
+    return Ok(reply::json(&None::<Vec<PhlowViewSpecificationDataNode>>));
 }
 
 pub async fn object_view_sent_item(
@@ -88,20 +89,35 @@ pub async fn object_view_sent_item(
     selected_object_id: PhlowObjectId,
     server: PhlowServer,
 ) -> Result<impl Reply, Rejection> {
-    let inspected_object = server.find_object(inspected_object_id);
+    let none_reply = Ok(reply::json(&None::<PhlowObjectDescription>));
 
-    let spec = inspected_object
-        .and_then(|object| find_view_specification_for_object(&object, view_selector.as_str()));
+    let inspected_object = match server.find_object(inspected_object_id) {
+        None => {
+            return none_reply;
+        }
+        Some(object) => object,
+    };
 
-    let object_to_send = spec.and_then(|spec| {
-        server
-            .find_object(selected_object_id)
-            .map(|selected_object| {
-                server.register_object(spec.retrieve_sent_item(&selected_object))
-            })
-    });
+    let view_spec =
+        match find_view_specification_for_object(&inspected_object, view_selector.as_str()) {
+            None => {
+                return none_reply;
+            }
+            Some(spec) => spec,
+        };
 
-    Ok(reply::json(&object_to_send))
+    let selected_object = match server.find_object(selected_object_id) {
+        None => return none_reply,
+        Some(object) => object,
+    };
+
+    let object_to_send = match view_spec.retrieve_sent_item(&selected_object).await {
+        None => return none_reply,
+        Some(object) => object,
+    };
+
+    let object_description = server.register_object(object_to_send);
+    Ok(reply::json(&object_description))
 }
 
 fn find_view_specification_for_object_id(

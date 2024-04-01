@@ -2,14 +2,18 @@ use std::any::Any;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
-use crate::{PhlowObject, PhlowView, PhlowViewMethod, TypedPhlowObject, TypedPhlowObjectMut};
+use crate::{
+    AsyncComputation, AsyncComputationFuture, ItemComputation, ItemsComputation, PhlowObject,
+    PhlowView, PhlowViewMethod, SendComputation, SyncComputation, SyncMutComputation,
+    TextComputation, TypedPhlowObject, TypedPhlowObjectMut,
+};
 
 #[derive(Clone)]
 pub struct PhlowColumn {
     title: String,
     index: usize,
-    item_computation: Arc<dyn Fn(&PhlowObject) -> Option<PhlowObject>>,
-    text_computation: Arc<dyn Fn(&PhlowObject) -> String>,
+    item_computation: ItemComputation,
+    text_computation: TextComputation,
 }
 
 impl PhlowColumn {
@@ -17,8 +21,8 @@ impl PhlowColumn {
         Self {
             title: "Column".to_string(),
             index: 0,
-            item_computation: Arc::new(|object| Some(object.clone())),
-            text_computation: Arc::new(|object| object.to_string()),
+            item_computation: Default::default(),
+            text_computation: Default::default(),
         }
     }
 
@@ -29,29 +33,14 @@ impl PhlowColumn {
 
     pub fn item<T: 'static>(
         mut self,
-        item_computation: impl Fn(TypedPhlowObject<T>) -> PhlowObject + 'static,
+        item_computation: impl SyncComputation<T, PhlowObject>,
     ) -> Self {
-        self.item_computation = Arc::new(move |each_object| {
-            each_object.value_ref::<T>().map(|each_reference| {
-                item_computation(TypedPhlowObject::new(each_object, &each_reference))
-            })
-        });
+        self.item_computation = ItemComputation::new_sync(item_computation);
         self
     }
 
-    pub fn text<T: 'static>(
-        mut self,
-        text_block: impl Fn(TypedPhlowObject<T>) -> String + 'static,
-    ) -> Self {
-        self.text_computation =
-            Arc::new(
-                move |each_object: &PhlowObject| match each_object.value_ref::<T>() {
-                    Some(each_reference) => {
-                        text_block(TypedPhlowObject::new(each_object, &each_reference))
-                    }
-                    None => "Error coercing item type".to_string(),
-                },
-            );
+    pub fn text<T: 'static>(mut self, text_block: impl SyncComputation<T, String>) -> Self {
+        self.text_computation = TextComputation::new_sync(text_block);
         self
     }
 
@@ -60,11 +49,13 @@ impl PhlowColumn {
     }
 
     pub fn compute_cell_item(&self, row_object: &PhlowObject) -> Option<PhlowObject> {
-        (self.item_computation)(row_object)
+        self.item_computation.value_block_on(row_object)
     }
 
     pub fn compute_cell_text(&self, cell_object: &PhlowObject) -> String {
-        (self.text_computation)(cell_object)
+        self.text_computation
+            .value_block_on(cell_object)
+            .unwrap_or_else(|| "Error coercing item type".to_string())
     }
 }
 
@@ -76,8 +67,8 @@ pub struct PhlowColumnedListView {
     title: String,
     priority: usize,
     columns: Vec<PhlowColumn>,
-    items_computation: Arc<dyn Fn(&PhlowObject) -> Vec<PhlowObject>>,
-    send_computation: Arc<dyn Fn(&PhlowObject) -> Option<PhlowObject>>,
+    items_computation: ItemsComputation,
+    send_computation: SendComputation,
 }
 
 impl PhlowColumnedListView {
@@ -88,8 +79,8 @@ impl PhlowColumnedListView {
             title: "".to_string(),
             priority: 10,
             columns: vec![],
-            items_computation: Arc::new(|_object| Default::default()),
-            send_computation: Arc::new(|object| Some(object.clone())),
+            items_computation: Default::default(),
+            send_computation: Default::default(),
         }
     }
 
@@ -105,32 +96,25 @@ impl PhlowColumnedListView {
 
     pub fn items<T: 'static>(
         mut self,
-        items_block: impl Fn(TypedPhlowObject<T>) -> Vec<PhlowObject> + 'static,
+        items_block: impl SyncComputation<T, Vec<PhlowObject>>,
     ) -> Self {
-        self.items_computation =
-            Arc::new(move |object: &PhlowObject| {
-                // the type may differ when passing over ffi boundary...
-                if let Some(reference) = object.value_ref::<T>() {
-                    items_block(TypedPhlowObject::new(object, &reference))
-                } else {
-                    vec![]
-                }
-            });
+        self.items_computation = ItemsComputation::new_sync(items_block);
         self
     }
 
     pub fn items_mut<T: 'static>(
         mut self,
-        items_block: impl Fn(TypedPhlowObjectMut<T>) -> Vec<PhlowObject> + 'static,
+        items_block: impl SyncMutComputation<T, Vec<PhlowObject>>,
     ) -> Self {
-        self.items_computation = Arc::new(move |object: &PhlowObject| {
-            // the type may differ when passing over ffi boundary...
-            if let Some(mut reference) = object.value_mut::<T>() {
-                items_block(TypedPhlowObjectMut::new(object, &mut reference))
-            } else {
-                vec![]
-            }
-        });
+        self.items_computation = ItemsComputation::new_sync_mut(items_block);
+        self
+    }
+
+    pub fn async_items<T: 'static, F: AsyncComputationFuture<Vec<PhlowObject>>>(
+        mut self,
+        items_block: impl AsyncComputation<T, Vec<PhlowObject>, F>,
+    ) -> Self {
+        self.items_computation = ItemsComputation::new_async(items_block);
         self
     }
 
@@ -150,29 +134,35 @@ impl PhlowColumnedListView {
     pub fn column_item<T: 'static>(
         self,
         title: impl Into<String>,
-        item_computation: impl Fn(TypedPhlowObject<T>) -> PhlowObject + 'static,
+        item_computation: impl SyncComputation<T, PhlowObject>,
     ) -> Self {
         self.column(|column| column.title(title).item(item_computation))
     }
 
     pub fn send<T: 'static>(
         mut self,
-        item_send_block: impl Fn(TypedPhlowObject<T>) -> PhlowObject + 'static,
+        item_send_block: impl SyncComputation<T, PhlowObject>,
     ) -> Self {
-        self.send_computation = Arc::new(move |object| {
-            object
-                .value_ref::<T>()
-                .map(|item| item_send_block(TypedPhlowObject::new(object, &item)))
-        });
+        self.send_computation = SendComputation::new_sync(item_send_block);
         self
     }
 
     pub fn compute_items(&self) -> Vec<PhlowObject> {
-        (self.items_computation)(&self.object)
+        self.items_computation
+            .value_block_on(&self.object)
+            .unwrap_or_default()
     }
-    pub fn compute_item_send(&self, item: &PhlowObject) -> PhlowObject {
-        ((self.send_computation)(item)).unwrap_or_else(|| item.clone())
+
+    pub async fn async_compute_items(&self) -> Vec<PhlowObject> {
+        self.items_computation
+            .value_or_else(&self.object, || vec![])
+            .await
     }
+
+    pub fn compute_item_send(&self, item: &PhlowObject) -> Option<PhlowObject> {
+        self.send_computation.value_block_on(item)
+    }
+
     pub fn get_columns(&self) -> &[PhlowColumn] {
         self.columns.as_slice()
     }
@@ -297,8 +287,9 @@ mod specification {
     }
 
     #[typetag::serialize(name = "GtPhlowColumnedListViewSpecification")]
+    #[async_trait::async_trait]
     impl PhlowViewSpecification for PhlowColumnedListViewSpecification {
-        fn retrieve_items(&self) -> Vec<Box<dyn PhlowViewSpecificationListingItem>> {
+        async fn retrieve_items(&self) -> Vec<Box<dyn PhlowViewSpecificationListingItem>> {
             self.phlow_view
                 .compute_items()
                 .into_iter()
@@ -325,7 +316,7 @@ mod specification {
                 .collect()
         }
 
-        fn retrieve_sent_item(&self, item: &PhlowObject) -> PhlowObject {
+        async fn retrieve_sent_item(&self, item: &PhlowObject) -> Option<PhlowObject> {
             self.phlow_view.compute_item_send(item)
         }
     }
