@@ -9,6 +9,6 @@ keywords = ["phlow","meta", "ffi"]
 description = "Provides C-like api to the phlow crates"
 
 [dependencies]
-phlow = { version = "1", path = "../phlow" }
+phlow = { version = "1.7", path = "../phlow" }
 value-box = { version = "2", features = [ "phlow" ] }
 string-box = "1"
