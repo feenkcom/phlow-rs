@@ -84,13 +84,17 @@ macro_rules! phlow_ref {
 #[macro_export]
 macro_rules! phlow_generic {
     ($child:expr, $parent:expr) => {{
-        phlow::PhlowObject::construct_reference(
-            $child,
-            $parent
-                .generic_phlow_type(0)
-                .unwrap_or_else(|| phlow_type!($child)),
-            Some($parent.clone()),
-        )
+        if let Some(child_phlow_object) = phlow::AsPhlowObject::try_into_phlow_object(&$child) {
+            child_phlow_object.clone()
+        } else {
+            phlow::PhlowObject::construct_reference(
+                $child,
+                $parent
+                    .generic_phlow_type(0)
+                    .unwrap_or_else(|| phlow_type!($child)),
+                Some($parent.clone()),
+            )
+        }
     }};
 }
 
