@@ -1,9 +1,9 @@
 use std::str::FromStr;
 
-use uuid::Uuid;
-use warp::{reply, Rejection, Reply};
-
 use phlow::{PhlowObject, PhlowObjectId, PhlowViewSpecification};
+use urlencoding::decode;
+use uuid::Uuid;
+use warp::{Rejection, reply, Reply};
 
 use crate::{PhlowObjectDescription, PhlowServer, PhlowViewSpecificationDataNode};
 
@@ -134,6 +134,7 @@ fn find_view_specification_for_object(
     object: &PhlowObject,
     view_selector: &str,
 ) -> Option<Box<dyn PhlowViewSpecification>> {
+    let view_selector = decode(view_selector).ok()?;
     let views = object.phlow_views();
     let view = views
         .into_iter()
